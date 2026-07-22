@@ -1,0 +1,10 @@
+{
+  "name": "my-pi-tools",
+  "version": "1.0.0",
+  "description": "个人 pi 扩展包：question-tool 交互提问 + task-complete-sound 完成提示音 + 按键配置",
+  "keywords": ["pi-package"],
+  "license": "MIT",
+  "pi": {
+    "extensions": ["./extensions/*.ts"]
+  }
+}
