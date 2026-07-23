@@ -1,10 +1,10 @@
 /**
- * 累计计时扩展 —— 持续记录整个会话的累计对话耗时
+ * 逐轮计时扩展 —— 每次用户输入后重新计时
  *
  * 功能：
- * - widget 始终显示整个会话的累计总耗时（一直累加，不随单轮结束重置）
+ * - widget 始终显示当前轮的对话耗时（每次用户输入后归零重新计时）
  * - 对话进行中每秒刷新
- * - 支持 /timing 命令查看详细统计
+ * - 支持 /timing 命令查看当前轮详细统计
  *
  * 安装：放入 ~/.pi/agent/extensions/ 或 .pi/extensions/ 即可，无需额外配置。
  * 重载：/reload 即可热加载。
@@ -92,6 +92,10 @@ export default function (pi: ExtensionAPI) {
     turnStartTime = Date.now();
     inTurn = true;
 
+    // 重置累计时间 —— 每次用户输入后重新计时
+    totalDuration = 0;
+    lastTurnDuration = 0;
+
     // 启动每秒刷新定时器，驱动 widget 更新
     if (tickTimer) clearInterval(tickTimer);
     tickTimer = setInterval(() => {
@@ -125,15 +129,15 @@ export default function (pi: ExtensionAPI) {
       const theme = ctx.ui.theme;
 
       const lines: string[] = [
-        theme.bold("⏱ 对话耗时统计"),
+        theme.bold("⏱ 当前轮对话耗时"),
         "",
-        `  累计耗时：${formatDuration(totalDuration)}`,
+        `  当前轮耗时：${formatDuration(totalDuration)}`,
       ];
 
       if (turnCount > 0) {
         const avg = Math.round(totalDuration / turnCount);
         lines.push(`  平均耗时：${formatDuration(avg)}`);
-        lines.push(`  上一轮耗时：${formatDuration(lastTurnDuration)}`);
+        lines.push(`  轮次序号：#${turnCount}`);
       } else {
         lines.push(theme.fg("dim", "  （暂无对话记录）"));
       }
