@@ -138,6 +138,7 @@ AI 会**总结提炼你的话**，按知识库文章格式创建记忆。
 
 ```
 /memory                            → 查看记忆摘要
+/memory save                       → 保存当前对话为记忆
 /memory add 我叫小民                → 快速记一条
 /memory add --user 我习惯用 yarn    → 记为用户级（跨项目）
 /memory search 部署                 → 搜索关键词
@@ -149,12 +150,13 @@ AI 会**总结提炼你的话**，按知识库文章格式创建记忆。
 
 ## AI 工具
 
-扩展向 AI 注册了 5 个工具：
+扩展向 AI 注册了 6 个工具：
 
 | 工具 | 用途 | AI 触发时机 |
 |------|------|-------------|
 | `memory_read` | 读取完整的记忆内容 | 索引中看到相关条目，需要详细了解时 |
 | `memory_create` | 创建新记忆 | 用户说了值得记住的信息时 |
+| `memory_create_from_session` | **保存当前对话为记忆** | 用户说"把刚才的讨论记下来"时 |
 | `memory_update` | 更新已有记忆 | 信息过时、需要补充或修正时 |
 | `memory_delete` | 删除记忆 | 信息不再需要时 |
 | `memory_search` | 全文搜索 | 不确定条目名，需要模糊查找时 |
@@ -176,12 +178,13 @@ index.ts
 ├── 事件钩子
 │   ├── session_start       → 确保存储目录就绪
 │   └── before_agent_start  → 注入记忆指南 + 索引到 system prompt
-├── LLM 工具 (5 个)
-│   ├── memory_read         → 按名称读取记忆文件
-│   ├── memory_create       → 创建 + 更新索引
-│   ├── memory_update       → 更新内容 + 索引
-│   ├── memory_delete       → 删除文件 + 索引
-│   └── memory_search       → 全文搜索返回摘要
+├── LLM 工具 (6 个)
+│   ├── memory_read                  → 按名称读取记忆文件
+│   ├── memory_create                → 创建 + 更新索引
+│   ├── memory_create_from_session   → 保存当前对话为记忆
+│   ├── memory_update                → 更新内容 + 索引
+│   ├── memory_delete                → 删除文件 + 索引
+│   └── memory_search                → 全文搜索返回摘要
 └── 用户命令
     └── /memory              → 摘要 / add / search / open / clear
 ```

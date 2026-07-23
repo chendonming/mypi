@@ -805,6 +805,143 @@ Also use \`memory_update\` to keep existing memories up-to-date, and \`memory_se
   });
 
   // ──────────────────────────────────────────────
+  // TOOL: memory_create_from_session — summarize conversation & create memory
+  // ──────────────────────────────────────────────
+  pi.registerTool({
+    name: "memory_create_from_session",
+    label: "Memory from Session",
+    description: "Summarize the current conversation and create a structured memory entry from it. Use when the user asks to save or remember what was discussed.",
+    promptSnippet: "Capture this conversation as a memory — reads the session and synthesizes into a structured note",
+    promptGuidelines: [
+      "When the user asks to \"remember this\", \"save this discussion\", or similar, use memory_create_from_session instead of memory_create.",
+      "It automatically reads the conversation and you provide the synthesis — no need to reconstruct from memory.",
+    ],
+    parameters: Type.Object({
+      name: Type.String({ description: "Name/identifier for this memory (lowercase-kebab-case)" }),
+      description: Type.String({ description: "One-line summary of what was discussed or decided" }),
+      synthesis: Type.String({ description: "Your structured synthesis of the conversation. Include: context/problem, key findings/conclusions, Why (reasoning/root cause), How to apply (actions/implications). Synthesize, don't just repeat." }),
+      type: Type.Optional(
+        StringEnum(["project", "feedback"] as const, {
+          description: "project (default) or feedback",
+        }),
+      ),
+      tags: Type.Optional(
+        Type.Array(Type.String(), { description: "Optional tags for categorization" }),
+      ),
+      scope: Type.Optional(
+        StringEnum(["project", "user"] as const, { description: "Scope: project (default) or user (cross-project)" }),
+      ),
+    }),
+    async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+      const scope = params.scope || "project";
+      const type = params.type || "project";
+      const slug = getProjectSlug(ctx.cwd);
+      const baseDir = scope === "user" ? userDir() : projectDir(slug);
+      const indexPath = scope === "user" ? userIndexPath() : projectIndexPath(slug);
+
+      // Validate and normalize name
+      const name = params.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+      if (!name) {
+        return { content: [{ type: "text", text: "Invalid name. Use lowercase kebab-case." }] };
+      }
+
+      const filename = `${name}.md`;
+      const filePath = path.join(baseDir, filename);
+
+      // Check for name collision
+      if (fs.existsSync(filePath)) {
+        return {
+          content: [
+            {
+              type: "text",
+              text: `Memory "${name}" already exists. Use memory_update to modify it, or choose a different name.`,
+            },
+          ],
+        };
+      }
+
+      // Extract conversation from session
+      const now = getDateStr();
+      let conversationContext = "";
+      try {
+        const branch = ctx.sessionManager.getBranch();
+        if (branch && branch.length > 0) {
+          const lines: string[] = [];
+          // Skip the last few entries that belong to this tool-calling turn
+          const relevantEntries = branch.slice(0, -3);
+          for (const entry of relevantEntries) {
+            if (entry.type !== "message" || !entry.message) continue;
+            const role = entry.message.role;
+            if (role !== "user" && role !== "assistant") continue;
+
+            const content = entry.message.content;
+            if (typeof content === "string") {
+              lines.push(`**${role === "user" ? "User" : "Assistant"}**: ${content}`);
+            } else if (Array.isArray(content)) {
+              const textParts: string[] = [];
+              for (const part of content) {
+                if (part && typeof part === "object" && (part as any).type === "text" && typeof (part as any).text === "string") {
+                  textParts.push((part as any).text);
+                }
+              }
+              if (textParts.length > 0) {
+                lines.push(`**${role === "user" ? "User" : "Assistant"}**: ${textParts.join("\n")}`);
+              }
+            }
+          }
+          if (lines.length > 0) {
+            conversationContext = lines.join("\n\n");
+          }
+        }
+      } catch {
+        conversationContext = "(Unable to read session)";
+      }
+
+      // Build memory content
+      const content = params.synthesis + (conversationContext
+        ? `\n\n---\n\n### Conversation Context\n\n${conversationContext}`
+        : "");
+
+      const mem: MemoryFile = {
+        frontmatter: {
+          name,
+          description: params.description,
+          type,
+          tags: params.tags || [],
+          status: "active",
+          originSessionId: getSessionId(ctx),
+          created_at: now,
+        },
+        content,
+      };
+
+      writeMemoryFile(filePath, mem);
+
+      // Update index
+      const entries = readOrInitIndex(indexPath);
+      entries.push({
+        name,
+        filename,
+        description: params.description,
+        tags: params.tags || [],
+        type,
+      });
+      saveIndex(indexPath, entries);
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `✅ Memory "${name}" created from session (${scope}/${type}).` +
+              `\n\nSummary: ${params.description}` +
+              (params.tags && params.tags.length > 0 ? `\nTags: ${params.tags.join(", ")}` : ""),
+          },
+        ],
+      };
+    },
+  });
+
+  // ──────────────────────────────────────────────
   // COMMAND: /memory — user-facing memory management
   // ──────────────────────────────────────────────
   pi.registerCommand("memory", {
@@ -935,6 +1072,102 @@ Also use \`memory_update\` to keep existing memories up-to-date, and \`memory_se
         return;
       }
 
+      // /memory save — 保存当前对话为记忆
+      if (trimmed === "save") {
+        try {
+          const branch = ctx.sessionManager.getBranch();
+          if (!branch || branch.length < 2) {
+            ctx.ui.notify("对话太短，无法保存。先聊几句再试？", "warning");
+            return;
+          }
+
+          // 提取对话内容
+          const messages: { role: string; text: string }[] = [];
+          for (const entry of branch) {
+            if (entry.type !== "message" || !entry.message) continue;
+            const role = entry.message.role;
+            if (role !== "user" && role !== "assistant") continue;
+
+            const content = entry.message.content;
+            if (typeof content === "string") {
+              messages.push({ role, text: content });
+            } else if (Array.isArray(content)) {
+              const textParts: string[] = [];
+              for (const part of content) {
+                if (part && typeof part === "object" && (part as any).type === "text" && typeof (part as any).text === "string") {
+                  textParts.push((part as any).text);
+                }
+              }
+              if (textParts.length > 0) {
+                messages.push({ role, text: textParts.join("\n") });
+              }
+            }
+          }
+
+          if (messages.length < 2) {
+            ctx.ui.notify("没有足够的对话内容可以保存。", "warning");
+            return;
+          }
+
+          // 从第一条用户消息生成条目名
+          const firstUserMsg = messages.find(m => m.role === "user")?.text || "";
+          const nameRaw = firstUserMsg.replace(/[^a-zA-Z0-9\u4e00-\u9fff]/g, "-").toLowerCase();
+          const name = nameRaw.slice(0, 35).replace(/^-+|-+$/g, "") || `session-${Date.now()}`;
+
+          // 生成描述
+          const descLimit = 60;
+          const description = firstUserMsg.length > descLimit
+            ? firstUserMsg.slice(0, descLimit) + "…"
+            : firstUserMsg;
+
+          // 格式化对话内容
+          const conversationBody = messages
+            .map(m => `### ${m.role === "user" ? "User" : "Assistant"}\n\n${m.text}`)
+            .join("\n\n");
+
+          const now = getDateStr();
+          const filename = `${name}.md`;
+          const filePath = path.join(projectDir(projectSlug), filename);
+
+          // 检查重名
+          if (fs.existsSync(filePath)) {
+            ctx.ui.notify(`记忆 "${name}" 已存在，使用 /memory open ${name} 查看。`, "warning");
+            return;
+          }
+
+          const structuredContent = `## 对话记录
+
+${conversationBody}
+
+---
+*由 /memory save 自动保存，待 AI 后续整理为结构化知识条目*`;
+
+          const mem: MemoryFile = {
+            frontmatter: {
+              name,
+              description,
+              type: "project",
+              tags: [],
+              status: "active",
+              originSessionId: getSessionId(ctx),
+              created_at: now,
+            },
+            content: structuredContent,
+          };
+
+          writeMemoryFile(filePath, mem);
+
+          const entries = readOrInitIndex(projectIndexPath(projectSlug));
+          entries.push({ name, filename, description, tags: [], type: "project" });
+          saveIndex(projectIndexPath(projectSlug), entries);
+
+          ctx.ui.notify(`✅ 对话已保存为记忆：${name}\n📄 ${description}\n💡 对 AI 说 "帮我整理一下 ${name}" 来让 AI 总结提炼`, "info");
+        } catch (err) {
+          ctx.ui.notify(`保存失败：${err}`, "error");
+        }
+        return;
+      }
+
       // /memory clear
       if (trimmed === "clear") {
         const confirm = await ctx.ui.confirm("Clear all memories?", "This permanently deletes all project memory files and index.");
@@ -997,6 +1230,7 @@ Also use \`memory_update\` to keep existing memories up-to-date, and \`memory_se
       }
 
       summary += "\n━━ 使用方法 ━━\n" +
+        "  /memory save              → 保存当前对话为记忆\n" +
         "  /memory add <内容>        → 快速记住一条信息\n" +
         "  /memory add --user <内容> → 记为用户级（跨项目）\n" +
         "  /memory search <关键词>   → 搜索记忆\n" +
@@ -1004,7 +1238,7 @@ Also use \`memory_update\` to keep existing memories up-to-date, and \`memory_se
         "  /memory clear             → 清除项目记忆\n" +
         "\n💡 也可以直接对 AI 说:\n" +
         "  \"记住我叫小民\"  \"记一下服务器地址是 xxx\"\n" +
-        "  AI 会自动调用 memory_create 来保存";
+        "  \"把刚才的讨论记下来\"";
 
       ctx.ui.notify(summary, "info");
     },
