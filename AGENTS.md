@@ -85,6 +85,65 @@ my-pi-tools/                    ←  ~/.pi/agent/           (符号链接)
 | **pi settings** | `~/.pi/agent/settings.json` | `config/settings.template.json` | 🟡 模板，手动复制 |
 | **pi wrapper** | `~/.local/bin/pi` | `config/pi-wrapper.template.sh` | 🟡 模板，手动复制 |
 
+## Tools（独立脚本）
+
+项目 `tools/` 目录下的脚本可以通过 `python3 tools/<script>` 调用，或直接运行（需可执行权限）。
+这些脚本不通过 pi 加载，是独立的命令行工具。
+
+| 脚本 | 作用 | 跨平台 |
+|------|------|--------|
+| `tools/session-view` | Pi 会话查看器：Web UI 浏览 + AI 压缩分析 | ✅ Python 3，macOS/Linux/Windows |
+
+### session-view
+
+用于分析 pi 代理会话（`.jsonl` 文件）的执行过程。两个核心场景：
+
+**场景一：人类查看 — 浏览器 Web UI**
+```bash
+# 打开当前项目的最新会话
+python3 tools/session-view
+
+# 打开指定文件
+python3 tools/session-view --web -f <路径/xxx.jsonl>
+
+# 打开其他项目的最新会话
+python3 tools/session-view --web -p other-project
+```
+
+Web UI 支持：拖拽加载、折叠/展开、全文搜索、按类型过滤（thinking/tool calls/results）、
+展开全部/折叠全部、**一键复制 AI 摘要**。
+
+**场景二：AI 分析 — 压缩版 Markdown 输出**
+```bash
+# 输出当前项目最新会话的 AI 压缩版
+python3 tools/session-view --ai
+
+# 输出到文件，然后读取分析
+python3 tools/session-view --ai -f <路径/xxx.jsonl> > session-summary.md
+```
+
+AI 压缩策略：
+- Thinking 块：保留头尾，省略中间（可节省 60-80% token）
+- Tool result：每个最多保留 800 字符
+- 超长文本：截断至 2000 字符
+- Token 成本：仅保留总览，不在每条消息重复
+
+**其他命令：**
+```bash
+# 列出最近会话
+python3 tools/session-view --list
+
+# 指定项目筛选
+python3 tools/session-view --ai -p my-pi-tools
+```
+
+**AI 如何建议用户使用：**
+当用户需要调试 pi 代理的会话行为，或分析大模型执行情况时，AI 应：
+1. 建议用户运行 `python3 tools/session-view` 以浏览器打开 Web UI（人类友好）
+2. 或运行 `python3 tools/session-view --ai > summary.md` 生成压缩摘要，然后 AI 直接读取 summary.md 进行分析
+
+---
+
 ## 重新加载
 
 修改项目文件后，在 pi 内执行 `/reload` 热加载扩展和技能。符号链接会确保全局始终读取项目中的最新内容。

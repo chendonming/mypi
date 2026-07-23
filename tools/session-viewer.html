@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pi Session Viewer</title>
+<style>
+/* ─── Reset & Base ─── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117; --bg2:#161b22; --bg3:#1c2333; --bg4:#21262d;
+  --border:#30363d; --border2:#21262d;
+  --text:#e6edf3; --text2:#8b949e; --text3:#484f58;
+  --accent:#58a6ff; --accent2:#1f6feb;
+  --green:#3fb950; --orange:#d29922; --red:#f85149; --purple:#bc8cff;
+  --user:#1f6feb33; --assistant:#1c2333; --tool:#161b22; --thinking:#2a1f3e;
+  --font:'SF Mono','Cascadia Code','JetBrains Mono','Fira Code',monospace;
+  --font-ui:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+  --radius:8px; --radius-sm:4px;
+}
+body{font-family:var(--font-ui);background:var(--bg);color:var(--text);line-height:1.6;min-height:100vh}
+a{color:var(--accent);text-decoration:none}
+a:hover{text-decoration:underline}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar{width:8px;height:8px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--bg4);border-radius:4px}
+::-webkit-scrollbar-thumb:hover{background:var(--text3)}
+
+/* ─── App Layout ─── */
+.app{max-width:960px;margin:0 auto;padding:16px 20px}
+
+/* ─── Drop Zone ─── */
+.drop-zone{
+  border:2px dashed var(--border);border-radius:var(--radius);
+  padding:48px 24px;text-align:center;cursor:pointer;
+  transition:all .2s;margin:16px 0;
+  background:var(--bg2);
+}
+.drop-zone:hover,.drop-zone.dragover{
+  border-color:var(--accent);background:var(--bg3);
+}
+.drop-zone-icon{font-size:48px;margin-bottom:12px;opacity:.6}
+.drop-zone-title{font-size:18px;font-weight:600;margin-bottom:8px}
+.drop-zone-hint{font-size:14px;color:var(--text2)}
+.drop-zone input[type=file]{display:none}
+
+/* ─── Header ─── */
+.header{
+  display:none;padding:16px 0;border-bottom:1px solid var(--border);margin-bottom:16px;
+}
+.header.show{display:block}
+.header-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.header-title{font-size:20px;font-weight:700;color:var(--text)}
+.header-badge{
+  font-size:11px;padding:2px 8px;border-radius:10px;
+  background:var(--bg3);color:var(--text2);border:1px solid var(--border);
+}
+.header-meta{font-size:13px;color:var(--text2);margin-top:4px}
+.header-meta span{margin-right:16px}
+
+/* ─── Quick Actions ─── */
+.actions{
+  display:none;gap:8px;padding:8px 0;align-items:center;
+  border-bottom:1px solid var(--border);margin-bottom:8px;
+}
+.actions.show{display:flex}
+.action-btn{
+  display:inline-flex;align-items:center;gap:5px;
+  padding:5px 12px;font-size:12px;font-family:var(--font-ui);
+  border:1px solid var(--border);border-radius:var(--radius-sm);
+  background:var(--bg3);color:var(--text2);cursor:pointer;
+  transition:all .15s;user-select:none;
+}
+.action-btn:hover{background:var(--bg4);color:var(--text);border-color:var(--accent)}
+.action-btn.primary{background:var(--accent2);color:#fff;border-color:var(--accent)}
+.action-btn.primary:hover{background:var(--accent)}
+
+/* ─── Stats Bar ─── */
+.stats{
+  display:none;gap:8px;padding:12px 0;flex-wrap:wrap;
+}
+.stats.show{display:flex}
+.stat-card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:8px 14px;font-size:13px;color:var(--text2);display:flex;align-items:center;gap:6px;
+}
+.stat-card .num{color:var(--text);font-weight:600;font-family:var(--font)}
+
+/* ─── Filters ─── */
+.filters{
+  display:none;gap:8px;padding:8px 0;align-items:center;flex-wrap:wrap;
+  border-bottom:1px solid var(--border);margin-bottom:12px;
+}
+.filters.show{display:flex}
+.filters label{
+  display:flex;align-items:center;gap:4px;font-size:13px;color:var(--text2);cursor:pointer;
+  padding:4px 10px;border-radius:var(--radius-sm);background:var(--bg3);
+  border:1px solid var(--border);user-select:none;
+}
+.filters label:hover{background:var(--bg4)}
+.filters input[type=checkbox]{accent-color:var(--accent);margin:0}
+.filters .search-wrap{
+  flex:1;min-width:160px;position:relative;
+}
+.filters .search-wrap input{
+  width:100%;padding:5px 10px 5px 28px;font-size:13px;
+  background:var(--bg3);border:1px solid var(--border);border-radius:var(--radius-sm);
+  color:var(--text);font-family:var(--font-ui);
+}
+.filters .search-wrap input:focus{outline:none;border-color:var(--accent)}
+.filters .search-icon{position:absolute;left:8px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:14px}
+.filter-count{font-size:12px;color:var(--text3);margin-left:auto}
+
+/* ─── Model Timeline ─── */
+.model-timeline{
+  display:none;gap:4px;padding:8px 0;flex-wrap:wrap;
+  border-bottom:1px solid var(--border);margin-bottom:12px;
+}
+.model-timeline.show{display:flex}
+.model-tag{
+  font-size:11px;padding:2px 8px;border-radius:10px;
+  background:var(--bg3);border:1px solid var(--border);color:var(--text2);
+  font-family:var(--font);
+}
+.model-tag .provider{color:var(--accent)}
+.model-tag .model{color:var(--green)}
+
+/* ─── Conversation ─── */
+.conversation{display:none}
+.conversation.show{display:block}
+
+/* ─── Message ─── */
+.msg{
+  margin-bottom:12px;border-radius:var(--radius);
+  background:var(--bg2);border:1px solid var(--border);
+  overflow:hidden;transition:opacity .3s;
+}
+.msg.filtered-out{display:none}
+.msg.search-match{border-color:var(--orange);box-shadow:0 0 0 1px var(--orange)}
+
+.msg-header{
+  display:flex;align-items:center;gap:8px;
+  padding:8px 14px;font-size:12px;font-family:var(--font);
+  border-bottom:1px solid var(--border2);background:var(--bg3);
+  cursor:pointer;user-select:none;
+}
+.msg-header:hover{filter:brightness(1.1)}
+
+.msg-role{
+  font-weight:700;font-size:13px;text-transform:uppercase;
+  letter-spacing:.5px;
+}
+.msg-role.user{color:var(--accent)}
+.msg-role.assistant{color:var(--green)}
+.msg-role.tool{color:var(--orange)}
+
+.msg-tag{
+  font-size:10px;padding:1px 6px;border-radius:8px;
+  background:var(--bg4);color:var(--text3);
+}
+.msg-time{color:var(--text3);margin-left:auto;font-size:11px}
+.msg-cost{color:var(--purple);font-size:11px}
+.msg-model{color:var(--text2);font-size:11px}
+.toggle-icon{color:var(--text3);font-size:10px;transition:transform .2s}
+
+.msg-body{padding:12px 14px;overflow-x:auto}
+.msg-body.collapsed{display:none}
+
+/* ─── User Message ─── */
+.msg.user{border-left:3px solid var(--accent)}
+.msg.user .msg-header{background:var(--user)}
+
+/* ─── Assistant Message ─── */
+.msg.assistant{border-left:3px solid var(--green)}
+.msg.assistant .msg-header{background:var(--assistant)}
+
+/* ─── Tool Result ─── */
+.msg.tool{border-left:3px solid var(--orange)}
+.msg.tool .msg-header{background:var(--tool)}
+
+/* ─── Model Change ─── */
+.model-change{
+  display:flex;align-items:center;gap:8px;padding:6px 14px;
+  margin:8px 0;font-size:12px;color:var(--text2);
+  background:var(--bg3);border-radius:var(--radius-sm);
+  border-left:3px solid var(--purple);
+}
+.model-change .arrow{color:var(--text3);font-size:10px}
+
+/* ─── Thinking Block ─── */
+.thinking-block{
+  background:var(--thinking);border:1px solid #3d2a5e;
+  border-radius:var(--radius-sm);margin-bottom:8px;overflow:hidden;
+}
+.thinking-header{
+  display:flex;align-items:center;gap:6px;
+  padding:6px 10px;font-size:11px;color:var(--purple);
+  cursor:pointer;user-select:none;font-weight:600;
+}
+.thinking-header:hover{filter:brightness(1.2)}
+.thinking-header .count{color:var(--text3);font-weight:400;font-size:10px}
+.thinking-content{
+  padding:10px 12px;font-size:13px;line-height:1.7;
+  font-family:var(--font);white-space:pre-wrap;word-break:break-word;
+  color:#d4c5f5;border-top:1px solid #3d2a5e;
+  display:none;
+}
+.thinking-content.show{display:block}
+.thinking-content .hl{background:#3d2a5e88;border-radius:2px;padding:0 2px}
+
+/* ─── Text Content ─── */
+.text-content{
+  font-size:14px;line-height:1.7;white-space:pre-wrap;word-break:break-word;
+  margin-bottom:6px;
+}
+.text-content .hl{background:#d2992233;border-radius:2px;padding:0 2px}
+
+/* ─── Tool Call ─── */
+.tool-call{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:var(--radius-sm);margin:6px 0;overflow:hidden;
+}
+.tool-call-header{
+  display:flex;align-items:center;gap:6px;
+  padding:5px 10px;font-size:12px;font-family:var(--font);
+  cursor:pointer;user-select:none;background:var(--bg4);
+}
+.tool-call-header .name{color:var(--orange);font-weight:600}
+.tool-call-header .args{color:var(--text2);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+.tool-call-header .status.ok{color:var(--green)}
+.tool-call-header .status.err{color:var(--red)}
+
+.tool-call-body{padding:8px 10px;display:none;overflow-x:auto}
+.tool-call-body.show{display:block}
+.tool-call-body pre{
+  font-family:var(--font);font-size:12px;line-height:1.5;
+  color:var(--text2);white-space:pre-wrap;word-break:break-word;
+  max-height:300px;overflow-y:auto;
+}
+
+/* ─── Timeline markers in conversation ─── */
+.timeline-marker{
+  display:flex;align-items:center;gap:8px;
+  padding:4px 14px;font-size:11px;color:var(--text3);
+}
+.timeline-marker .line{flex:1;height:1px;background:var(--border)}
+
+/* ─── Empty State ─── */
+.empty-state{
+  text-align:center;padding:48px 20px;color:var(--text2);
+  display:none;
+}
+.empty-state .icon{font-size:48px;margin-bottom:12px}
+.empty-state .msg{font-size:15px}
+
+/* ─── Loading ─── */
+.loading{display:none;text-align:center;padding:24px}
+.loading.show{display:block}
+.loading .spinner{
+  display:inline-block;width:24px;height:24px;
+  border:3px solid var(--border);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ─── Toast ─── */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+  background:var(--bg3);color:var(--text);padding:10px 20px;
+  border-radius:var(--radius);border:1px solid var(--border);
+  font-size:13px;z-index:1000;opacity:0;transition:opacity .3s;
+  pointer-events:none;
+}
+.toast.show{opacity:1}
+
+/* ─── Responsive ─── */
+@media(max-width:600px){
+  .app{padding:8px 12px}
+  .msg-body{padding:8px 10px}
+  .filters label{padding:3px 8px;font-size:12px}
+  .header-title{font-size:17px}
+}
+
+/* ─── Syntax highlight for JSON args ─── */
+.json-key{color:var(--accent)}
+.json-string{color:var(--green)}
+.json-number{color:var(--orange)}
+.json-boolean{color:var(--purple)}
+.json-null{color:var(--text3)}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <!-- Drop Zone -->
+  <div class="drop-zone" id="dropZone">
+    <div class="drop-zone-icon">📋</div>
+    <div class="drop-zone-title">拖拽会话文件到这里</div>
+    <div class="drop-zone-hint">或点击选择 .jsonl 文件 &nbsp;·&nbsp; 支持 Pi Agent 会话格式</div>
+    <input type="file" id="fileInput" accept=".jsonl,.json">
+  </div>
+
+  <!-- Header -->
+  <div class="header" id="header">
+    <div class="header-row">
+      <div class="header-title">🔍 Pi Session Viewer</div>
+      <span class="header-badge" id="msgCount">0 messages</span>
+      <span class="header-badge" id="fileBadge"></span>
+    </div>
+    <div class="header-meta">
+      <span>📁 <span id="sessionCwd"></span></span>
+      <span>🆔 <span id="sessionId" style="font-family:var(--font);font-size:12px"></span></span>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions" id="actions">
+    <button class="action-btn primary" onclick="copyAiSummary()">📋 复制 AI 摘要</button>
+    <button class="action-btn" onclick="expandAll()">📖 全部展开</button>
+    <button class="action-btn" onclick="collapseAll()">📕 全部折叠</button>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats" id="stats"></div>
+
+  <!-- Model Timeline -->
+  <div class="model-timeline" id="modelTimeline"></div>
+
+  <!-- Filters -->
+  <div class="filters" id="filters">
+    <label><input type="checkbox" id="filterThinking" checked> 🧠 thinking</label>
+    <label><input type="checkbox" id="filterToolCalls" checked> 🔧 tool calls</label>
+    <label><input type="checkbox" id="filterToolResults" checked> 📤 tool results</label>
+    <label><input type="checkbox" id="filterModelChanges" checked> 🔄 model changes</label>
+    <div class="search-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="搜索对话内容…">
+    </div>
+    <span class="filter-count" id="filterCount"></span>
+  </div>
+
+  <!-- Loading -->
+  <div class="loading" id="loading"><div class="spinner"></div></div>
+
+  <!-- Conversation -->
+  <div class="conversation" id="conversation"></div>
+
+  <!-- Empty State -->
+  <div class="empty-state" id="emptyState">
+    <div class="icon">📂</div>
+    <div class="msg">拖拽或选择 JSONL 文件以开始浏览</div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ============================================================
+//  Pi Session Viewer — Self-Contained Web UI
+//  Parse & render pi agent .jsonl session files
+// ============================================================
+
+'use strict';
+
+// ─── Helpers ───
+function base64DecodeUtf8(b64) {
+  // atob() returns Latin-1; TextDecoder properly handles multi-byte UTF-8
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return new TextDecoder('utf-8').decode(bytes);
+}
+
+// ─── State ───
+let session = null;
+let events = [];
+let currentSearch = '';
+let filters = {
+  thinking: true,
+  toolCalls: true,
+  toolResults: true,
+  modelChanges: true,
+};
+
+// ─── DOM refs ───
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const header = document.getElementById('header');
+const msgCount = document.getElementById('msgCount');
+const fileBadge = document.getElementById('fileBadge');
+const sessionCwd = document.getElementById('sessionCwd');
+const sessionId = document.getElementById('sessionId');
+const stats = document.getElementById('stats');
+const modelTimeline = document.getElementById('modelTimeline');
+const conversation = document.getElementById('conversation');
+const emptyState = document.getElementById('emptyState');
+const loading = document.getElementById('loading');
+const toast = document.getElementById('toast');
+
+// ─── Utilities ───
+function $(sel, parent=document) { return parent.querySelector(sel); }
+function $$(sel, parent=document) { return [...parent.querySelectorAll(sel)]; }
+const escHtml = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const escAttr = s => String(s).replace(/"/g,'&quot;').replace(/&/g,'&amp;');
+
+function fmtTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts);
+  return d.toLocaleTimeString('zh-CN', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+
+function fmtDuration(ms) {
+  if (!ms) return '';
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${m}m${sec}s`;
+}
+
+function fmtTokens(n) {
+  if (!n) return '0';
+  if (n >= 1000000) return (n/1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n/1000).toFixed(1) + 'k';
+  return String(n);
+}
+
+function syntaxHighlightJSON(str) {
+  if (!str) return '';
+  return escHtml(str).replace(
+    /("(?:[^"\\]|\\.)*")\s*(?=:)|:\s*("(?:[^"\\]|\\.)*")|:\s*(true|false|null)|:\s*(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g,
+    (m, key, strVal, bool, num) => {
+      if (key) return `<span class="json-key">${key}</span>`;
+      if (strVal) return `: <span class="json-string">${strVal}</span>`;
+      if (bool) return `: <span class="json-boolean">${bool}</span>`;
+      if (num) return `: <span class="json-number">${num}</span>`;
+      return m;
+    }
+  );
+}
+
+function truncateArgs(str, max=80) {
+  if (!str || str.length <= max) return str || '';
+  return str.slice(0, max) + '…';
+}
+
+function highlightText(text, query) {
+  if (!query || !text) return escHtml(text);
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(${escaped})`, 'gi');
+  return escHtml(text).replace(re, '<span class="hl">$1</span>');
+}
+
+function showToast(msg, duration=2500) {
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('show'), duration);
+}
+
+// ─── Parse JSONL ───
+function parseJSONL(text) {
+  const lines = text.trim().split('\n').filter(Boolean);
+  const events = [];
+  let sessionInfo = null;
+
+  for (let i = 0; i < lines.length; i++) {
+    try {
+      const obj = JSON.parse(lines[i]);
+      if (obj.type === 'session') {
+        sessionInfo = obj;
+      }
+      events.push(obj);
+    } catch (e) {
+      console.warn(`Line ${i+1}: parse error:`, e.message);
+    }
+  }
+
+  return { session: sessionInfo, events };
+}
+
+// ─── Render ───
+function render() {
+  if (!events.length) {
+    emptyState.style.display = 'block';
+    conversation.classList.remove('show');
+    return;
+  }
+  emptyState.style.display = 'none';
+
+  // Build parent-child map for tree rendering
+  const childrenMap = new Map();
+  const idToEvent = new Map();
+  events.forEach(ev => {
+    idToEvent.set(ev.id, ev);
+    const pid = ev.parentId;
+    if (!childrenMap.has(pid)) childrenMap.set(pid, []);
+    childrenMap.get(pid).push(ev);
+  });
+
+  // Sort children by their index in original events array
+  for (const [pid, kids] of childrenMap) {
+    kids.sort((a, b) => events.indexOf(a) - events.indexOf(b));
+  }
+
+  // Render stats
+  renderStats(events);
+
+  // Render model timeline
+  renderModelTimeline(events);
+
+  // Render conversation
+  // Use BFS/DFS from root events (parentId = null or not found in events)
+  const rootIds = events
+    .filter(ev => !ev.parentId || !idToEvent.has(ev.parentId))
+    .map(ev => ev.id);
+
+  // Also include events that are message type and form the main chain
+  // Simpler approach: linear render with tree expansion for tool results
+  renderLinear(events);
+}
+
+function renderStats(events) {
+  const msgEvents = events.filter(ev => ev.type === 'message');
+  const userMsgs = msgEvents.filter(ev => ev.message?.role === 'user');
+  const assistantMsgs = msgEvents.filter(ev => ev.message?.role === 'assistant');
+  const toolResults = msgEvents.filter(ev => ev.message?.role === 'toolResult');
+
+  let totalInput = 0, totalOutput = 0, totalReasoning = 0, totalCost = 0;
+  let modelCounts = {};
+
+  events.forEach(ev => {
+    if (ev.type === 'message' && ev.message?.role === 'assistant' && ev.usage) {
+      const u = ev.usage;
+      totalInput += u.input || 0;
+      totalOutput += u.output || 0;
+      totalReasoning += u.reasoning || 0;
+      if (u.cost) totalCost += u.cost.total || u.cost || 0;
+      const key = `${ev.provider || '?'}/${ev.model || '?'}`;
+      modelCounts[key] = (modelCounts[key] || 0) + 1;
+    }
+  });
+
+  const modelList = Object.entries(modelCounts)
+    .map(([k, v]) => `${k}×${v}`).join(', ');
+
+  stats.innerHTML = `
+    <div class="stat-card">💬 <span class="num">${userMsgs.length}</span> user · <span class="num">${assistantMsgs.length}</span> assistant · <span class="num">${toolResults.length}</span> tools</div>
+    <div class="stat-card">📊 <span class="num">${fmtTokens(totalInput)}</span> in / <span class="num">${fmtTokens(totalOutput)}</span> out / <span class="num">${fmtTokens(totalReasoning)}</span> think</div>
+    ${totalCost > 0 ? `<div class="stat-card">💰 <span class="num">$${totalCost.toFixed(4)}</span></div>` : ''}
+    <div class="stat-card" style="font-size:11px">🤖 ${modelList || '—'}</div>
+  `;
+  stats.classList.add('show');
+}
+
+function renderModelTimeline(events) {
+  const changes = events.filter(ev => ev.type === 'model_change');
+  if (!changes.length) { modelTimeline.classList.remove('show'); return; }
+
+  modelTimeline.innerHTML = '<span style="font-size:11px;color:var(--text3)">🤖 Model:</span> ' +
+    changes.map(ch => {
+      const p = ch.provider || '?';
+      const m = ch.modelId || '?';
+      return `<span class="model-tag"><span class="provider">${escHtml(p)}</span>/<span class="model">${escHtml(m)}</span></span>`;
+    }).join('');
+
+  // Also show thinking level changes
+  const thinkChanges = events.filter(ev => ev.type === 'thinking_level_change');
+  if (thinkChanges.length) {
+    modelTimeline.innerHTML += ' <span style="font-size:11px;color:var(--text3);margin-left:8px">🧠</span> ' +
+      thinkChanges.map(ch =>
+        `<span class="model-tag">${escHtml(ch.thinkingLevel || '?')}</span>`
+      ).join('');
+  }
+
+  modelTimeline.classList.add('show');
+}
+
+function renderLinear(events) {
+  // Collect message events in order
+  const msgEvents = events.filter(ev => ev.type === 'message');
+
+  // Build a map of toolCallId -> toolResult for linking
+  const toolResultMap = new Map();
+  msgEvents.forEach(ev => {
+    if (ev.message?.role === 'toolResult' && ev.message.toolCallId) {
+      toolResultMap.set(ev.message.toolCallId, ev);
+    }
+  });
+
+  // Also collect model changes and thinking changes for inline display
+  const modelChanges = events.filter(ev => ev.type === 'model_change');
+  const modelChangeTimes = new Map(modelChanges.map(ev => [ev.id, ev]));
+
+  // Build a map: is a message ID a descendant of a model change?
+  // We need to track which model was active at each point
+  const eventModel = new Map();
+  let currentModel = null;
+  let currentProvider = null;
+  events.forEach(ev => {
+    if (ev.type === 'model_change') {
+      currentModel = ev.modelId;
+      currentProvider = ev.provider;
+    }
+    if (ev.type === 'message' && ev.message?.role === 'assistant') {
+      eventModel.set(ev.id, { provider: ev.provider || currentProvider, model: ev.model || currentModel });
+    }
+  });
+
+  let html = '';
+  let msgIndex = 0;
+
+  // Track which events we've rendered to show model changes inline
+  const renderedIds = new Set();
+
+  for (let i = 0; i < events.length; i++) {
+    const ev = events[i];
+
+    // Show model change as inline marker
+    if (ev.type === 'model_change' && filters.modelChanges) {
+      const p = ev.provider || '?';
+      const m = ev.modelId || '?';
+      html += `<div class="model-change">🔄 <span class="provider" style="color:var(--accent)">${escHtml(p)}</span>/<span style="color:var(--green)">${escHtml(m)}</span> <span class="arrow">→</span> <span style="color:var(--text3)">${fmtTime(ev.timestamp)}</span></div>`;
+      continue;
+    }
+
+    // Skip non-message events for the main render
+    if (ev.type !== 'message') continue;
+
+    const msg = ev.message || {};
+    const role = msg.role;
+    const content = msg.content || [];
+
+    // ── User Message ──
+    if (role === 'user') {
+      const text = content.map(c => c.text || '').join('');
+      html += `
+        <div class="msg user" data-id="${ev.id}" data-role="user">
+          <div class="msg-header" onclick="toggleMsg(this)">
+            <span class="toggle-icon">▶</span>
+            <span class="msg-role user">👤 User</span>
+            <span class="msg-time">${fmtTime(ev.timestamp)}</span>
+          </div>
+          <div class="msg-body">
+            <div class="text-content">${highlightText(text, currentSearch)}</div>
+          </div>
+        </div>
+      `;
+      msgIndex++;
+      continue;
+    }
+
+    // ── Assistant Message ──
+    if (role === 'assistant') {
+      const modelInfo = eventModel.get(ev.id);
+      const modelStr = modelInfo ? `${modelInfo.provider}/${modelInfo.model}` : '';
+      const usage = ev.usage || {};
+      const cost = usage.cost?.total || usage.cost || 0;
+      const stopReason = ev.stopReason || '';
+
+      const thinkingBlocks = content.filter(c => c.type === 'thinking');
+      const textBlocks = content.filter(c => c.type === 'text');
+      const toolCalls = content.filter(c => c.type === 'toolCall');
+
+      const textContent = textBlocks.map(c => c.text || '').join('\n');
+
+      let thinkingHtml = '';
+      thinkingBlocks.forEach((tb, ti) => {
+        const thinkText = tb.thinking || '';
+        const charCount = thinkText.length;
+        const lineCount = thinkText.split('\n').length;
+        thinkingHtml += `
+          <div class="thinking-block">
+            <div class="thinking-header" onclick="toggleThinking(this)">
+              <span class="toggle-icon">▶</span>
+              🧠 thinking ${thinkingBlocks.length > 1 ? `#${ti+1}` : ''}
+              <span class="count">${charCount} chars · ${lineCount} lines</span>
+            </div>
+            <div class="thinking-content">${highlightText(thinkText, currentSearch)}</div>
+          </div>
+        `;
+      });
+
+      let toolCallsHtml = '';
+      toolCalls.forEach(tc => {
+        const tcId = tc.id || tc.toolCallId || '';
+        const tcName = tc.name || tc.function?.name || '?';
+        let tcArgs = '';
+        if (tc.arguments) {
+          tcArgs = typeof tc.arguments === 'string' ? tc.arguments : JSON.stringify(tc.arguments);
+        } else if (tc.function?.arguments) {
+          tcArgs = typeof tc.function.arguments === 'string' ? tc.function.arguments : JSON.stringify(tc.function.arguments);
+        }
+
+        // Find matching tool result
+        const result = toolResultMap.get(tcId);
+        const hasResult = !!result;
+        const isError = result?.message?.isError;
+        const resultText = result ? (result.message.content || []).map(c => c.text || '').join('\n') : '';
+
+        // Truncate args for header
+        const shortArgs = truncateArgs(tcArgs, 60);
+        const syntaxArgs = syntaxHighlightJSON(tcArgs);
+
+        toolCallsHtml += `
+          <div class="tool-call" data-toolcall-id="${escAttr(tcId)}">
+            <div class="tool-call-header" onclick="toggleToolCall(this)">
+              <span class="toggle-icon">▶</span>
+              <span class="name">${escHtml(tcName)}</span>
+              <span class="args">${escHtml(shortArgs)}</span>
+              ${hasResult ? `<span class="status ${isError ? 'err' : 'ok'}">${isError ? '⚠️ error' : '✅'}</span>` : '<span class="status" style="color:var(--text3)">⏳</span>'}
+            </div>
+            <div class="tool-call-body">
+              <pre>${syntaxArgs}</pre>
+              ${hasResult ? `<div style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px;font-size:11px;color:var(--text3)">📤 Result:</div><pre>${escHtml(resultText.slice(0, 2000))}${resultText.length > 2000 ? '\n…(truncated)' : ''}</pre>` : ''}
+            </div>
+          </div>
+        `;
+      });
+
+      const costDisplay = cost > 0 ? `<span class="msg-cost">$${cost.toFixed(4)}</span>` : '';
+      const stopDisplay = stopReason ? `<span class="msg-tag">${escHtml(stopReason)}</span>` : '';
+      const tokenDisplay = usage.totalTokens
+        ? `<span class="msg-tag">${fmtTokens(usage.totalTokens)} tok</span>`
+        : (usage.input ? `<span class="msg-tag">${fmtTokens(usage.input)}/${fmtTokens(usage.output)} tok</span>` : '');
+
+      html += `
+        <div class="msg assistant" data-id="${ev.id}" data-role="assistant">
+          <div class="msg-header" onclick="toggleMsg(this)">
+            <span class="toggle-icon">▶</span>
+            <span class="msg-role assistant">🤖 Assistant</span>
+            ${modelStr ? `<span class="msg-model">${escHtml(modelStr)}</span>` : ''}
+            ${tokenDisplay}
+            ${stopDisplay}
+            ${costDisplay}
+            <span class="msg-time">${fmtTime(ev.timestamp)}</span>
+          </div>
+          <div class="msg-body">
+            ${thinkingHtml}
+            ${textContent ? `<div class="text-content">${highlightText(textContent, currentSearch)}</div>` : ''}
+            ${toolCallsHtml}
+          </div>
+        </div>
+      `;
+      msgIndex++;
+      continue;
+    }
+
+    // ── Tool Result (standalone, not linked to a tool call we rendered) ──
+    if (role === 'toolResult') {
+      // We only render standalone tool results if they weren't matched to a tool call
+      const tcId = msg.toolCallId;
+      if (toolResultMap.has(tcId) && filters.toolResults) {
+        // Already rendered inline in the tool call card above
+        continue;
+      }
+
+      // Orphan tool result
+      const toolName = msg.toolName || '?';
+      const text = content.map(c => c.text || '').join('');
+      const isError = msg.isError;
+
+      html += `
+        <div class="msg tool" data-id="${ev.id}" data-role="tool">
+          <div class="msg-header" onclick="toggleMsg(this)">
+            <span class="toggle-icon">▶</span>
+            <span class="msg-role tool">🔧 Tool: ${escHtml(toolName)}</span>
+            ${isError ? '<span class="status err" style="color:var(--red);font-size:11px">⚠️ error</span>' : ''}
+            <span class="msg-time">${fmtTime(ev.timestamp)}</span>
+          </div>
+          <div class="msg-body">
+            <pre style="font-family:var(--font);font-size:12px;color:var(--text2);white-space:pre-wrap;max-height:300px;overflow-y:auto">${escHtml(text.slice(0, 1500))}${text.length > 1500 ? '\n…(truncated)' : ''}</pre>
+          </div>
+        </div>
+      `;
+      msgIndex++;
+    }
+  }
+
+  conversation.innerHTML = html;
+
+  // Apply filters
+  applyFilters();
+  updateFilterCount();
+
+  // Auto-expand all messages by default (body visible, header shows ▼)
+  $$('.msg-header').forEach(h => {
+    const icon = h.querySelector('.toggle-icon');
+    if (icon) icon.textContent = '▼';
+  });
+  $$('.msg-body').forEach(b => b.classList.remove('collapsed'));
+
+  conversation.classList.add('show');
+  msgCount.textContent = `${$$('.msg').length} messages`;
+}
+
+// ─── Toggle Functions ───
+function toggleMsg(header) {
+  const body = header.nextElementSibling;
+  const icon = header.querySelector('.toggle-icon');
+  if (body.classList.toggle('collapsed')) {
+    if (icon) icon.textContent = '▶';
+  } else {
+    if (icon) icon.textContent = '▼';
+  }
+}
+
+function toggleThinking(header) {
+  const content = header.nextElementSibling;
+  const icon = header.querySelector('.toggle-icon');
+  if (content.classList.toggle('show')) {
+    if (icon) icon.textContent = '▼';
+  } else {
+    if (icon) icon.textContent = '▶';
+  }
+}
+
+function toggleToolCall(header) {
+  const body = header.nextElementSibling;
+  const icon = header.querySelector('.toggle-icon');
+  if (body.classList.toggle('show')) {
+    if (icon) icon.textContent = '▼';
+  } else {
+    if (icon) icon.textContent = '▶';
+  }
+}
+
+// ─── Filters ───
+function applyFilters() {
+  const showThinking = document.getElementById('filterThinking').checked;
+  const showToolCalls = document.getElementById('filterToolCalls').checked;
+  const showToolResults = document.getElementById('filterToolResults').checked;
+  const showModelChanges = document.getElementById('filterModelChanges').checked;
+
+  filters.thinking = showThinking;
+  filters.toolCalls = showToolCalls;
+  filters.toolResults = showToolResults;
+  filters.modelChanges = showModelChanges;
+
+  // Show/hide thinking blocks
+  $$('.thinking-block').forEach(b => {
+    b.style.display = showThinking ? '' : 'none';
+  });
+
+  // Show/hide tool calls
+  $$('.tool-call').forEach(tc => {
+    tc.style.display = showToolCalls ? '' : 'none';
+  });
+
+  // Show/hide tool result messages
+  $$('.msg.tool').forEach(m => {
+    m.style.display = showToolResults ? '' : 'none';
+  });
+
+  // Show/hide model change markers
+  $$('.model-change').forEach(m => {
+    m.style.display = showModelChanges ? '' : 'none';
+  });
+
+  // Apply search highlighting
+  applySearch();
+}
+
+function applySearch() {
+  const query = document.getElementById('searchInput').value.trim();
+  currentSearch = query;
+
+  // Remove existing highlights and search-match classes
+  $$('.msg').forEach(m => m.classList.remove('search-match'));
+  $$('.hl').forEach(el => {
+    const parent = el.parentNode;
+    parent.replaceChild(document.createTextNode(el.textContent), el);
+    parent.normalize();
+  });
+
+  if (!query) {
+    $$('.msg').forEach(m => m.classList.remove('filtered-out'));
+    updateFilterCount();
+    return;
+  }
+
+  // Search in all text content of messages
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(${escaped})`, 'gi');
+
+  $$('.msg').forEach(m => {
+    const body = m.querySelector('.msg-body');
+    const textContent = body ? body.textContent : '';
+    const matches = textContent.match(re);
+    if (matches) {
+      m.classList.remove('filtered-out');
+      m.classList.add('search-match');
+      // Highlight in text-content and thinking-content
+      m.querySelectorAll('.text-content, .thinking-content').forEach(el => {
+        el.innerHTML = el.textContent.replace(re, '<span class="hl">$1</span>');
+      });
+    } else {
+      m.classList.add('filtered-out');
+      m.classList.remove('search-match');
+    }
+  });
+
+  updateFilterCount();
+}
+
+function updateFilterCount() {
+  const total = $$('.msg').length;
+  const visible = $$('.msg:not(.filtered-out)').length;
+  document.getElementById('filterCount').textContent =
+    total > 0 ? `${visible} / ${total} messages` : '';
+}
+
+// ─── Load File ───
+function loadFile(file) {
+  // Reset
+  loading.classList.add('show');
+  conversation.innerHTML = '';
+  stats.classList.remove('show');
+  modelTimeline.classList.remove('show');
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const text = e.target.result;
+      const parsed = parseJSONL(text);
+      session = parsed.session;
+      events = parsed.events;
+
+      if (!events.length) {
+        showToast('⚠️ 未能解析有效的会话事件', 3000);
+        loading.classList.remove('show');
+        emptyState.style.display = 'block';
+        return;
+      }
+
+      // Update header
+      header.classList.add('show');
+      document.getElementById('actions').classList.add('show');
+      fileBadge.textContent = file.name;
+      if (session) {
+        sessionCwd.textContent = session.cwd || '—';
+        sessionId.textContent = session.id || '—';
+      }
+
+      render();
+      showToast(`✅ 已加载 ${events.length} 个事件`, 2000);
+    } catch (err) {
+      showToast(`❌ 解析错误: ${err.message}`, 4000);
+      console.error(err);
+    }
+    loading.classList.remove('show');
+  };
+  reader.readAsText(file);
+}
+
+// ─── Event Listeners ───
+// Drag & Drop
+dropZone.addEventListener('dragover', e => {
+  e.preventDefault();
+  dropZone.classList.add('dragover');
+});
+dropZone.addEventListener('dragleave', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+});
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  const files = e.dataTransfer.files;
+  if (files.length) loadFile(files[0]);
+});
+
+// Click to select
+dropZone.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', e => {
+  if (e.target.files.length) loadFile(e.target.files[0]);
+});
+
+// Filter listeners
+['filterThinking','filterToolCalls','filterToolResults','filterModelChanges'].forEach(id => {
+  document.getElementById(id).addEventListener('change', applyFilters);
+});
+
+// Search with debounce
+document.getElementById('searchInput').addEventListener('input', () => {
+  clearTimeout(window._searchDebounce);
+  window._searchDebounce = setTimeout(applySearch, 200);
+});
+
+// Keyboard shortcut
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'o') {
+    e.preventDefault();
+    fileInput.click();
+  }
+  if (e.key === 'Escape') {
+    document.getElementById('searchInput').value = '';
+    applySearch();
+  }
+});
+
+// ─── Init ───
+emptyState.style.display = 'block';
+
+// Check for embedded session data (injected by CLI script)
+if (window.__embeddedSessionData && Array.isArray(window.__embeddedSessionData) && window.__embeddedSessionData.length > 0) {
+  events = window.__embeddedSessionData;
+  // Find session info
+  for (const ev of events) {
+    if (ev.type === 'session') {
+      session = ev;
+      break;
+    }
+  }
+  // Hide drop zone, show content immediately
+  dropZone.style.display = 'none';
+  header.classList.add('show');
+  document.getElementById('actions').classList.add('show');
+  fileBadge.textContent = window.__embeddedFileName || '嵌入式会话';
+  if (session) {
+    sessionCwd.textContent = session.cwd || '—';
+    sessionId.textContent = session.id || '—';
+  }
+  render();
+  // Show toast after render
+  setTimeout(() => showToast(`✅ 已加载 ${events.length} 个事件`, 2000), 100);
+}
+
+// ─── Utility Functions ───
+function expandAll() {
+  $$('.msg-body.collapsed').forEach(b => b.classList.remove('collapsed'));
+  $$('.msg-header .toggle-icon').forEach(i => i.textContent = '▼');
+  $$('.thinking-content').forEach(c => c.classList.add('show'));
+  $$('.thinking-header .toggle-icon').forEach(i => i.textContent = '▼');
+  $$('.tool-call-body').forEach(b => b.classList.add('show'));
+  $$('.tool-call-header .toggle-icon').forEach(i => i.textContent = '▼');
+}
+
+function collapseAll() {
+  $$('.msg-body').forEach(b => b.classList.add('collapsed'));
+  $$('.msg-header .toggle-icon').forEach(i => i.textContent = '▶');
+  $$('.thinking-content').forEach(c => c.classList.remove('show'));
+  $$('.thinking-header .toggle-icon').forEach(i => i.textContent = '▶');
+  $$('.tool-call-body').forEach(b => b.classList.remove('show'));
+  $$('.tool-call-header .toggle-icon').forEach(i => i.textContent = '▶');
+}
+
+function generateAiSummary() {
+  // Build a compressed Markdown summary from loaded events
+  if (!events.length) return '# 无会话数据\n';
+
+  const evts = events;
+  const lines = [];
+  lines.push('# Session 摘要\n');
+
+  // Session info
+  const sess = evts.find(e => e.type === 'session');
+  if (sess) {
+    lines.push(`- 📁 **CWD:** \`${sess.cwd || '?'}\``);
+    lines.push(`- 🆔 **ID:** \`${(sess.id || '?').slice(0, 20)}…\``);
+    lines.push(`- ⏱ **时间:** ${sess.timestamp || '?'}`);
+  }
+
+  // Stats
+  let u = 0, a = 0, t = 0, tc = 0, th = 0, ti = 0, to = 0, cost = 0;
+  const models = new Set();
+  const modelChanges = [];
+
+  for (const ev of evts) {
+    if (ev.type === 'model_change') {
+      modelChanges.push(`${ev.provider||'?'}/${ev.modelId||'?'}`);
+    } else if (ev.type === 'message') {
+      const msg = ev.message || {};
+      const r = msg.role;
+      if (r === 'user') u++;
+      else if (r === 'assistant') {
+        a++;
+        for (const c of (msg.content || [])) {
+          if (c.type === 'thinking') th += (c.thinking || '').length;
+          else if (c.type === 'toolCall') tc++;
+        }
+        const usg = ev.usage || {};
+        ti += usg.input || 0;
+        to += usg.output || 0;
+        const cst = usg.cost || {};
+        if (typeof cst === 'object') cost += cst.total || 0;
+        else if (typeof cst === 'number') cost += cst;
+        if (ev.provider && ev.model) models.add(`${ev.provider}/${ev.model}`);
+      } else if (r === 'toolResult') t++;
+    }
+  }
+
+  const modelStr = [...new Set(modelChanges)].join(' → ') || [...models].join(', ') || '—';
+  lines.push(`- 🤖 **Models:** ${modelStr}`);
+  lines.push(`- 💬 **Messages:** ${u} user / ${a} assistant / ${t} tool results / ${tc} tool calls`);
+  if (th > 0) lines.push(`- 🧠 **Thinking:** ${th.toLocaleString()} chars`);
+  lines.push(`- 📊 **Tokens:** ${(ti/1000).toFixed(1)}k in / ${(to/1000).toFixed(1)}k out`);
+  if (cost > 0) lines.push(`- 💰 **Cost:** $${cost.toFixed(4)}`);
+  lines.push('');
+  lines.push('---\n');
+  lines.push('## 对话流程\n');
+
+  let ui = 0, ai = 0;
+  for (const ev of evts) {
+    if (ev.type !== 'message') continue;
+    const msg = ev.message || {};
+    const role = msg.role;
+    const content = msg.content || [];
+
+    if (role === 'user') {
+      ui++;
+      const text = content.filter(c => c.type === 'text').map(c => c.text || '').join('');
+      lines.push(`### 👤 User #${ui}\n`);
+      lines.push(text + '\n');
+    } else if (role === 'assistant') {
+      ai++;
+      const label = `${ev.provider||'?'}/${ev.model||'?'}`;
+      const usg = ev.usage || {};
+      const cst = typeof usg.cost === 'object' ? (usg.cost.total || 0) : (typeof usg.cost === 'number' ? usg.cost : 0);
+      const costTag = cst > 0 ? ` 💰 $${cst.toFixed(4)}` : '';
+      const tokTag = usg.input ? ` [${fmtTokens(usg.input)}/${fmtTokens(usg.output)} tok]` : '';
+      lines.push(`### 🤖 Assistant #${ai}（${label}）${costTag}${tokTag}\n`);
+
+      for (const c of content) {
+        if (c.type === 'thinking') {
+          const t = c.thinking || '';
+          const summary = t.length > 500 ? t.slice(0, 200) + '\n\n……[省略]……\n\n' + t.slice(-150) : t;
+          lines.push(`> 🧠 **thinking**（${t.length} chars）\n>\n> ${summary}\n`);
+        } else if (c.type === 'text') {
+          let txt = c.text || '';
+          if (txt.length > 2000) txt = txt.slice(0, 2000) + '\n\n……[截断]……';
+          lines.push(txt + '\n');
+        } else if (c.type === 'toolCall') {
+          const name = c.name || (c.function && c.function.name) || '?';
+          const args = typeof c.arguments === 'object' ? JSON.stringify(c.arguments) : String(c.arguments || '');
+          lines.push(`🔧 \`${name}(${args.slice(0, 150)})\`\n`);
+        }
+      }
+      lines.push('');
+    } else if (role === 'toolResult') {
+      const toolName = msg.toolName || '?';
+      const isErr = msg.isError;
+      let txt = content.filter(c => typeof c === 'object').map(c => c.text || '').join('');
+      if (txt.length > 800) txt = txt.slice(0, 800) + '\n\n……[截断]……';
+      if (isErr) {
+        lines.push(`> ⚠️ **Tool Error: ${toolName}**\n>\n> ${txt}\n`);
+      } else if (txt.trim()) {
+        lines.push(`> 📤 **Result: ${toolName}**\n>\n> ${txt}\n`);
+      }
+    }
+  }
+
+  return lines.join('\n');
+}
+
+function copyAiSummary() {
+  const markdown = generateAiSummary();
+  navigator.clipboard.writeText(markdown).then(() => {
+    showToast('✅ AI 摘要已复制到剪贴板', 2000);
+  }).catch(() => {
+    // Fallback
+    const ta = document.createElement('textarea');
+    ta.value = markdown;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('✅ AI 摘要已复制到剪贴板', 2000);
+  });
+}
+
+console.log('🔍 Pi Session Viewer ready. Drop a .jsonl file to begin.');
+</script>
+</body>
+</html>

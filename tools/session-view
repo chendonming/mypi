@@ -1,0 +1,474 @@
+#!/usr/bin/env python3
+"""
+Pi Session Viewer — 人类友好（Web UI）+ AI 友好（压缩输出）
+使用方式见 AGENTS.md
+
+跨平台：macOS / Linux / Windows 均可用（需 Python 3.8+）
+"""
+# ──────────────────────────────────────────────────────────────
+
+import argparse, json, os, sys, tempfile, webbrowser, re, textwrap
+from pathlib import Path
+from datetime import datetime, timezone
+
+# ─── Constants ───
+TOOLS_DIR = Path(__file__).resolve().parent
+HTML_TEMPLATE = TOOLS_DIR / "session-viewer.html"
+SESSION_BASE = Path.home() / ".pi" / "agent" / "sessions"
+
+
+# ══════════════════════════════════════════════════════════════
+#  Common helpers
+# ══════════════════════════════════════════════════════════════
+
+def fmt_time(ts):
+    """Format ISO timestamp to readable time."""
+    if not ts:
+        return ""
+    try:
+        if ts.endswith("Z"):
+            ts = ts.replace("Z", "+00:00")
+        d = datetime.fromisoformat(ts)
+        return d.astimezone().strftime("%H:%M:%S")
+    except (ValueError, TypeError):
+        return str(ts)[:19] if ts else ""
+
+
+def fmt_tokens(n):
+    if not n:
+        return "0"
+    n = int(n)
+    if n >= 1_000_000:
+        return f"{n/1_000_000:.1f}M"
+    if n >= 1_000:
+        return f"{n/1_000:.1f}k"
+    return str(n)
+
+
+def truncated(text, max_len=200, ellipsis="…"):
+    """Truncate text to max_len chars, keeping whole suffix if too long."""
+    if not text:
+        return ""
+    if len(text) <= max_len:
+        return text
+    return text[:max_len] + ellipsis
+
+
+def head_tail(text, head=150, tail=100):
+    """Keep head and tail of text, with middle omitted."""
+    if not text:
+        return ""
+    if len(text) <= head + tail + 20:
+        return text
+    return text[:head] + f"\n\n……[省略中间 {len(text) - head - tail} 字符]……\n\n" + text[-tail:]
+
+
+# ══════════════════════════════════════════════════════════════
+#  Session file discovery
+# ══════════════════════════════════════════════════════════════
+
+def find_sessions(project_filter=None, limit=20):
+    """Find session .jsonl files, newest first."""
+    if not SESSION_BASE.is_dir():
+        return []
+
+    sessions = []
+    if project_filter:
+        # Build session dir name: project path with / → -- and wrapped with --
+        dirname = "--" + project_filter.strip("/").replace("/", "--") + "--"
+        target = SESSION_BASE / dirname
+        if target.is_dir():
+            for f in sorted(target.glob("*.jsonl"), reverse=True):
+                sessions.append(f)
+    else:
+        # Scan all subdirectories
+        for d in sorted(SESSION_BASE.iterdir()):
+            if d.is_dir() or d.is_symlink():
+                for f in sorted(d.glob("*.jsonl"), reverse=True)[:5]:
+                    sessions.append(f)
+
+    # Sort all by modification time, newest first
+    sessions.sort(key=lambda p: p.stat().st_mtime, reverse=True)
+    return sessions[:limit]
+
+
+def find_latest(project_filter=None):
+    """Find the latest session file."""
+    all_sessions = find_sessions(project_filter, limit=1)
+    if all_sessions:
+        return all_sessions[0]
+    # Fallback: broad search
+    files = sorted(SESSION_BASE.rglob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True)
+    return files[0] if files else None
+
+
+def load_events(filepath):
+    """Parse a .jsonl file into a list of event dicts."""
+    events = []
+    with open(filepath, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                pass
+    return events
+
+
+def get_session_info(events):
+    """Extract session metadata."""
+    session = None
+    for ev in events:
+        if ev.get("type") == "session":
+            session = ev
+            break
+    return session
+
+
+# ══════════════════════════════════════════════════════════════
+#  AI-friendly compression
+# ══════════════════════════════════════════════════════════════
+
+def compress_for_ai(filepath):
+    """
+    Read a .jsonl session and produce a token-efficient Markdown summary
+    suitable for feeding to an LLM for analysis.
+    """
+    events = load_events(filepath)
+    if not events:
+        return "⚠️ 无法解析会话文件，未找到任何事件。"
+
+    session = get_session_info(events)
+    lines = []
+
+    # ── Header ──
+    lines.append("# Session 摘要\n")
+    if session:
+        lines.append(f"- 📁 **CWD:** `{session.get('cwd','?')}`")
+        lines.append(f"- 🆔 **ID:** `{session.get('id','?')[:20]}…`")
+        lines.append(f"- ⏱ **时间:** {session.get('timestamp','?')}")
+
+    # Stats
+    user_msgs = 0
+    asst_msgs = 0
+    tool_results = 0
+    total_tool_calls = 0
+    total_thinking = 0
+    total_input = 0
+    total_output = 0
+    total_cost = 0.0
+    model_changes = []
+    models_used = set()
+
+    for ev in events:
+        t = ev.get("type")
+        if t == "model_change":
+            model_changes.append((ev.get("provider", "?"), ev.get("modelId", "?")))
+        elif t == "message":
+            msg = ev.get("message", {}) or {}
+            role = msg.get("role", "")
+            if role == "user":
+                user_msgs += 1
+            elif role == "assistant":
+                asst_msgs += 1
+                for c in (msg.get("content") or []):
+                    if isinstance(c, dict):
+                        if c.get("type") == "thinking":
+                            total_thinking += len(c.get("thinking", "") or "")
+                        elif c.get("type") == "toolCall":
+                            total_tool_calls += 1
+                u = ev.get("usage") or {}
+                total_input += u.get("input", 0) or 0
+                total_output += u.get("output", 0) or 0
+                cost = u.get("cost") or {}
+                if isinstance(cost, dict):
+                    total_cost += cost.get("total", 0) or 0
+                elif isinstance(cost, (int, float)):
+                    total_cost += cost
+                if ev.get("provider") and ev.get("model"):
+                    models_used.add(f"{ev['provider']}/{ev['model']}")
+            elif role == "toolResult":
+                tool_results += 1
+
+    model_str = " → ".join(
+        dict.fromkeys([f"{p}/{m}" for p, m in model_changes])
+    ) or "—"
+    if not model_str or model_str == "—":
+        model_str = ", ".join(sorted(models_used)) or "—"
+
+    tok_str = f"📊 **Tokens:** {fmt_tokens(total_input)} in / {fmt_tokens(total_output)} out"
+    think_str = f"🧠 **Thinking:** {fmt_tokens(total_thinking)} chars" if total_thinking else ""
+    cost_str = f"💰 **Cost:** ${total_cost:.4f}" if total_cost > 0 else ""
+
+    lines.append(f"- 🤖 **Models:** {model_str}")
+    lines.append(f"- 💬 **Messages:** {user_msgs} user / {asst_msgs} assistant / {tool_results} tool results / {total_tool_calls} tool calls")
+    if think_str:
+        lines.append(f"- {think_str}")
+    lines.append(f"- {tok_str}")
+    if cost_str:
+        lines.append(f"- {cost_str}")
+
+    lines.append("")
+    lines.append("---")
+    lines.append("")
+
+    # ── Conversation Flow ──
+    lines.append("## 对话流程\n")
+
+    user_idx = 0
+    asst_idx = 0
+
+    for ev in events:
+        if ev.get("type") != "message":
+            continue
+        msg = ev.get("message", {}) or {}
+        role = msg.get("role", "")
+        content = msg.get("content") or []
+
+        if role == "user":
+            user_idx += 1
+            text = "".join(
+                c.get("text", "") for c in content
+                if isinstance(c, dict) and c.get("type") == "text"
+            )
+            lines.append(f"### 👤 User #{user_idx}\n")
+            lines.append(f"{text}\n")
+
+        elif role == "assistant":
+            asst_idx += 1
+            model_label = f"{ev.get('provider','?')}/{ev.get('model','?')}"
+            usage = ev.get("usage") or {}
+            cost_val = 0
+            c = usage.get("cost") or {}
+            if isinstance(c, dict):
+                cost_val = c.get("total", 0) or 0
+            elif isinstance(c, (int, float)):
+                cost_val = c
+            cost_tag = f" 💰 ${cost_val:.4f}" if cost_val > 0 else ""
+            tok_tag = f" [{fmt_tokens(usage.get('input',0))}/{fmt_tokens(usage.get('output',0))} tok]" if usage.get("input") else ""
+
+            lines.append(f"### 🤖 Assistant #{asst_idx}（{model_label}）{cost_tag}{tok_tag}\n")
+
+            thinking_blocks = [c for c in content if isinstance(c, dict) and c.get("type") == "thinking"]
+            text_blocks = [c for c in content if isinstance(c, dict) and c.get("type") == "text"]
+            tool_calls = [c for c in content if isinstance(c, dict) and c.get("type") == "toolCall"]
+
+            # Thinking (compressed)
+            for tb in thinking_blocks:
+                think_text = tb.get("thinking", "") or ""
+                if len(think_text) > 500:
+                    summary = head_tail(think_text, 200, 150)
+                else:
+                    summary = think_text
+                lines.append(f"> 🧠 **thinking**（{len(think_text)} chars）\n>\n> {summary}\n")
+
+            # Text content
+            for tb in text_blocks:
+                text = tb.get("text", "") or ""
+                if len(text) > 2000:
+                    text = text[:2000] + "\n\n……[截断，完整内容见 Web UI]……"
+                if text:
+                    lines.append(f"{text}\n")
+
+            # Tool calls (summarized)
+            if tool_calls:
+                lines.append(f"**🔧 Tool calls（{len(tool_calls)}）:**\n")
+                for idx, tc in enumerate(tool_calls, 1):
+                    tc_name = tc.get("name") or tc.get("function", {}).get("name", "?")
+                    tc_args_raw = tc.get("arguments") or tc.get("function", {}).get("arguments", {})
+                    if isinstance(tc_args_raw, dict):
+                        tc_args_str = json.dumps(tc_args_raw, ensure_ascii=False)
+                    else:
+                        tc_args_str = str(tc_args_raw)
+                    tc_args_short = truncated(tc_args_str, 150)
+                    lines.append(f"  {idx}. `{tc_name}({tc_args_short})`\n")
+                lines.append("")
+
+            # Link tool results inline in next pass, but we collect them here
+            # Actually let's render tool results inline at the next event
+
+        elif role == "toolResult":
+            is_err = msg.get("isError", False)
+            tool_name = msg.get("toolName", "?")
+            tc_id = msg.get("toolCallId", "")[:16]
+            result_text = "".join(
+                c.get("text", "") for c in content
+                if isinstance(c, dict)
+            )
+            if is_err:
+                lines.append(f"> ⚠️ **Tool Error: {tool_name}**（`{tc_id}…`）\n>\n> {truncated(result_text, 500)}\n")
+            else:
+                # Compress tool results aggressively
+                if len(result_text) > 800:
+                    result_text = result_text[:800] + "\n\n……[截断，完整内容见 Web UI]……"
+                if result_text.strip():
+                    lines.append(f"> 📤 **Result: {tool_name}**\n>\n> {result_text}\n")
+                else:
+                    lines.append(f"> 📤 **Result: {tool_name}**（空结果）\n")
+
+    output = "\n".join(lines)
+
+    # ── Token usage estimate ──
+    char_count = len(output)
+    est_tokens = char_count // 4  # rough Chinese-aware estimate
+    header = (
+        f"<!-- AI 压缩报告：原始会话 {len(events)} 事件，"
+        f"压缩后 ~{char_count} 字符 ≈ ~{est_tokens} tokens -->\n\n"
+    )
+
+    return header + output
+
+
+# ══════════════════════════════════════════════════════════════
+#  Web Viewer
+# ══════════════════════════════════════════════════════════════
+
+def open_web_viewer(filepath):
+    """
+    Open the session in the web viewer.
+    
+    Strategy: Read the JSONL, inject the events as embedded data into
+    the HTML template, write to a temp file, open in browser.
+    This avoids needing an HTTP server.
+    """
+    events = load_events(filepath)
+    if not events:
+        print("⚠️ 无法解析会话文件。", file=sys.stderr)
+        return False
+
+    if not HTML_TEMPLATE.is_file():
+        print(f"⚠️ 找不到 HTML 模板: {HTML_TEMPLATE}", file=sys.stderr)
+        return False
+
+    # Read HTML template
+    html = HTML_TEMPLATE.read_text(encoding="utf-8")
+
+    # Inject embedded session data
+    # NOTE: Use base64 + ensure_ascii=True to avoid:
+    #   - </script> in JSON breaking the HTML
+    #   - UTF-8 bytes being mis-decoded as Latin-1 by atob()
+    import base64
+    json_bytes = json.dumps(events, ensure_ascii=True, default=str).encode("utf-8")
+    b64 = base64.b64encode(json_bytes).decode("ascii")
+    file_name = Path(filepath).name
+    # Inline UTF-8 safe base64 decoder (injection script runs before main JS loads)
+    decoder = (
+        "function _b64(b){"
+        "var a=atob(b),u=new Uint8Array(a.length);"
+        "for(var i=0;i<a.length;i++)u[i]=a.charCodeAt(i);"
+        "return new TextDecoder('utf-8').decode(u);"
+        "}"
+    )
+    injection = (
+        f"<script>{decoder}"
+        f"window.__embeddedSessionData=JSON.parse(_b64({json.dumps(b64)}));"
+        f"window.__embeddedFileName={json.dumps(file_name)};"
+        f"</script></head>"
+    )
+    html = html.replace("</head>", injection, 1)
+
+    # Write to temp file
+    tmp_dir = Path.home() / ".pi" / "cache" / "session-view"
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+    tmp_html = tmp_dir / f"session-view-{Path(filepath).stem}.html"
+    tmp_html.write_text(html, encoding="utf-8")
+
+    # Open in browser
+    url = f"file://{tmp_html.resolve()}"
+    print(f"🌐 打开 Web 查看器: {url}", file=sys.stderr)
+    webbrowser.open(url)
+    return True
+
+
+# ══════════════════════════════════════════════════════════════
+#  CLI
+# ══════════════════════════════════════════════════════════════
+
+def cmd_list(args):
+    """List recent sessions."""
+    sessions = find_sessions(args.project, limit=20)
+    if not sessions:
+        print("📭 没有找到会话文件。")
+        print(f"  搜索路径: {SESSION_BASE}")
+        return
+
+    print(f"\n{'📋 Recent Pi Sessions':^60}\n")
+    print(f"{'#':>3}  {'Time':<20}  {'File':<50}")
+    print(f"{'─'*3}  {'─'*20}  {'─'*50}")
+    for i, fp in enumerate(sessions, 1):
+        mtime = datetime.fromtimestamp(fp.stat().st_mtime).strftime("%m-%d %H:%M:%S")
+        name = fp.parent.name + "/" + fp.stem[:40]
+        print(f"{i:>3}  {mtime:<20}  {name:<50}")
+    print()
+
+
+def cmd_web(args):
+    """Open web viewer."""
+    if args.file:
+        filepath = Path(args.file).resolve()
+    else:
+        filepath = find_latest(args.project)
+
+    if not filepath or not filepath.is_file():
+        print(f"⚠️ 找不到会话文件。{'指定项目: ' + args.project if args.project else '使用 --list 查看可用会话'}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"📂 加载会话: {filepath}", file=sys.stderr)
+    success = open_web_viewer(filepath)
+    if not success:
+        sys.exit(1)
+
+
+def cmd_ai(args):
+    """Output AI-friendly compressed session."""
+    if args.file:
+        filepath = Path(args.file).resolve()
+    else:
+        filepath = find_latest(args.project)
+
+    if not filepath or not filepath.is_file():
+        print(f"⚠️ 找不到会话文件。{'指定项目: ' + args.project if args.project else '使用 --list 查看可用会话'}", file=sys.stderr)
+        sys.exit(1)
+
+    print(compress_for_ai(filepath))
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Pi Session Viewer — 人类友好（Web UI）+ AI 友好（压缩输出）",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=textwrap.dedent("""\
+            使用示例:
+              session-view                    # 浏览器打开最新会话
+              session-view --ai              # AI 压缩版输出到终端
+              session-view --web -f <file>   # 浏览器打开指定会话
+              session-view --list            # 列出最近会话
+              session-view --ai -p my-project  # 指定项目的 AI 压缩版本
+        """)
+    )
+
+    # Mode
+    parser.add_argument("--web", "-w", action="store_true", help="浏览器模式（默认）")
+    parser.add_argument("--ai", "-a", action="store_true", help="AI 压缩模式")
+    parser.add_argument("--list", "-l", action="store_true", help="列出最近会话")
+
+    # Options
+    parser.add_argument("--file", "-f", type=str, help="指定会话 .jsonl 文件路径")
+    parser.add_argument("--project", "-p", type=str, help="按项目路径筛选（如 my-pi-tools）")
+
+    args = parser.parse_args()
+
+    # Route
+    if args.list:
+        cmd_list(args)
+    elif args.ai:
+        cmd_ai(args)
+    else:
+        # Default: web mode
+        cmd_web(args)
+
+
+if __name__ == "__main__":
+    main()
