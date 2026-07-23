@@ -89,12 +89,15 @@ export default function (pi: ExtensionAPI) {
   // —— 每轮开始 ——
   pi.on("turn_start", async () => {
     turnCount++;
-    turnStartTime = Date.now();
-    inTurn = true;
 
-    // 重置累计时间 —— 每次用户输入后重新计时
-    totalDuration = 0;
-    lastTurnDuration = 0;
+    // 仅在真正的新轮次（非内部循环）时重置计时
+    if (!inTurn) {
+      turnStartTime = Date.now();
+      totalDuration = 0;
+      lastTurnDuration = 0;
+    }
+
+    inTurn = true;
 
     // 启动每秒刷新定时器，驱动 widget 更新
     if (tickTimer) clearInterval(tickTimer);
