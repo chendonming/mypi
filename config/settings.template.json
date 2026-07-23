@@ -12,6 +12,17 @@
 			"children": {
 				"thinking": "max"
 			}
+		},
+		"agentOverrides": {
+			"planner": {
+				"thinking": "max"
+			},
+			"oracle": {
+				"thinking": "max"
+			},
+			"worker": {
+				"thinking": "max"
+			}
 		}
 	}
 }
