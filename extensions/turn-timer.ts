@@ -1,9 +1,9 @@
 /**
- * 对话计时扩展 —— 记录每轮对话时长，支持实时显示
+ * 累计计时扩展 —— 持续记录整个会话的累计对话耗时
  *
  * 功能：
- * - 对话进行中：在输入框下方实时显示当前轮次耗时（每秒刷新）
- * - 每轮结束时：状态栏显示该轮耗时和累计对话时间
+ * - widget 始终显示整个会话的累计总耗时（一直累加，不随单轮结束重置）
+ * - 对话进行中每秒刷新
  * - 支持 /timing 命令查看详细统计
  *
  * 安装：放入 ~/.pi/agent/extensions/ 或 .pi/extensions/ 即可，无需额外配置。
@@ -23,14 +23,15 @@ function formatDuration(ms: number): string {
 
 export default function (pi: ExtensionAPI) {
   // —— 会话级状态 ——
-  let turnCount = 0;               // 当前会话的轮次数
-  let turnStartTime = 0;           // 当前轮开始的时间戳
-  let totalDuration = 0;           // 累计对话耗时（ms）
-  let lastTurnDuration = 0;        // 上一轮耗时（ms）
+  let turnCount = 0;        // 总轮次数（仅用于 /timing 统计）
+  let turnStartTime = 0;    // 当前轮开始时间戳
+  let totalDuration = 0;    // 累计对话总耗时（ms）
+  let lastTurnDuration = 0; // 上一轮耗时（ms）
+  let inTurn = false;       // 是否正在对话轮次中
 
   // —— 实时刷新相关 ——
-  let tickTimer: ReturnType<typeof setInterval> | null = null;  // 每秒刷新定时器
-  let requestRenderFn: (() => void) | null = null;              // 存储 tui.requestRender 引用
+  let tickTimer: ReturnType<typeof setInterval> | null = null;
+  let requestRenderFn: (() => void) | null = null;
 
   // —— 会话启动 ——
   pi.on("session_start", async (_event, ctx) => {
@@ -39,15 +40,41 @@ export default function (pi: ExtensionAPI) {
     turnStartTime = 0;
     totalDuration = 0;
     lastTurnDuration = 0;
+    inTurn = false;
 
-    // 移除实时计时 widget（如果有残留）
-    ctx.ui.setWidget("turn-timer", undefined);
+    if (tickTimer) {
+      clearInterval(tickTimer);
+      tickTimer = null;
+    }
+    requestRenderFn = null;
 
-    const theme = ctx.ui.theme;
-    ctx.ui.setStatus(
-      "turn-timer",
-      theme.fg("dim", "⏱ 就绪"),
-    );
+    // 创建持久化 widget（仅在会话启动时创建一次，生命周期跟随会话）
+    ctx.ui.setWidget("turn-timer", (tui, theme) => {
+      requestRenderFn = () => tui.requestRender();
+
+      return {
+        render: () => {
+          // 累计时间 = 已完成轮次总耗时 + 当前进行中的耗时（如果有）
+          const elapsedThisTurn = inTurn ? (Date.now() - turnStartTime) : 0;
+          const cumulative = totalDuration + elapsedThisTurn;
+
+          // 耗时颜色：<30s 用 accent，<2min 用 warning，>=2min 用 error
+          const color =
+            cumulative < 30_000
+              ? "accent"
+              : cumulative < 120_000
+                ? "warning"
+                : "error";
+
+          const timerText = theme.fg(color, `⏱ ${formatDuration(cumulative)}`);
+          return [theme.fg("dim", `── ${timerText} ──`)];
+        },
+        invalidate: () => {},
+      };
+    });
+
+    // 不需要状态栏
+    ctx.ui.setStatus("turn-timer", undefined);
   });
 
   // —— 会话关闭 ——
@@ -60,95 +87,35 @@ export default function (pi: ExtensionAPI) {
   });
 
   // —— 每轮开始 ——
-  pi.on("turn_start", async (_event, ctx) => {
+  pi.on("turn_start", async () => {
     turnCount++;
     turnStartTime = Date.now();
+    inTurn = true;
 
-    const theme = ctx.ui.theme;
-
-    // 1) 在输入框下方创建实时计时 widget
-    //    widget 的 render 函数在每次 TUI 重绘时被调用，
-    //    配合定时器每秒主动触发重绘，实现实时跳动效果
-    ctx.ui.setWidget("turn-timer", (tui, theme) => {
-      // 保存 requestRender 引用，供定时器调用
-      requestRenderFn = () => tui.requestRender();
-
-      return {
-        render: () => {
-          if (turnStartTime === 0) return [];
-
-          const elapsed = Date.now() - turnStartTime;
-
-          // 耗时颜色：<30s 用 accent，<2min 用 warning，>=2min 用 error
-          const color =
-            elapsed < 30_000
-              ? "accent"
-              : elapsed < 120_000
-                ? "warning"
-                : "error";
-
-          const timerText = theme.fg(color, `⏱ ${formatDuration(elapsed)}`);
-          return [theme.fg("dim", `── ${timerText} ──`)];
-        },
-        invalidate: () => {},
-      };
-    });
-
-    // 2) 启动每秒刷新定时器，驱动 widget 更新
+    // 启动每秒刷新定时器，驱动 widget 更新
+    if (tickTimer) clearInterval(tickTimer);
     tickTimer = setInterval(() => {
       requestRenderFn?.();
     }, 1000);
-
-    // 3) 更新状态栏（显示轮次信息）
-    const cumText = totalDuration > 0
-      ? theme.fg("dim", ` | 累计 ${formatDuration(totalDuration)}`)
-      : "";
-
-    ctx.ui.setStatus(
-      "turn-timer",
-      `${theme.fg("accent", "●")} ${theme.fg("dim", `第 ${turnCount} 轮`)}${cumText}`,
-    );
   });
 
   // —— 每轮结束 ——
-  pi.on("turn_end", async (_event, ctx) => {
-    if (turnStartTime === 0) return; // 安全兜底
+  pi.on("turn_end", async () => {
+    if (!inTurn) return;
 
-    // 停止定时器
+    const now = Date.now();
+    lastTurnDuration = now - turnStartTime;
+    totalDuration += lastTurnDuration;
+    inTurn = false;
+    turnStartTime = 0;
+
+    // 停止定时器（轮次结束后无需每秒刷新）
     if (tickTimer) {
       clearInterval(tickTimer);
       tickTimer = null;
     }
-    requestRenderFn = null;
-
-    // 计算耗时
-    const now = Date.now();
-    lastTurnDuration = now - turnStartTime;
-    totalDuration += lastTurnDuration;
-
-    // 移除实时计时 widget
-    ctx.ui.setWidget("turn-timer", undefined);
-
-    // 更新状态栏：显示最终耗时和累计时间
-    const theme = ctx.ui.theme;
-    const elapsed = formatDuration(lastTurnDuration);
-
-    const color =
-      lastTurnDuration < 30_000
-        ? "success"
-        : lastTurnDuration < 120_000
-          ? "warning"
-          : "error";
-
-    const check = theme.fg("success", "✓");
-    const turnLabel = theme.fg("dim", `第 ${turnCount} 轮`);
-    const timeLabel = theme.fg(color, elapsed);
-    const cumLabel = theme.fg("dim", ` | 累计 ${formatDuration(totalDuration)}`);
-
-    ctx.ui.setStatus(
-      "turn-timer",
-      `${check} ${turnLabel} ${timeLabel}${cumLabel}`,
-    );
+    // requestRenderFn 保留引用，但 widget 本身持久存在，
+    // 下次 turn_start 时会重新设置定时器和 requestRenderFn
   });
 
   // —— /timing 命令：查看详细统计 ——
@@ -160,11 +127,10 @@ export default function (pi: ExtensionAPI) {
       const lines: string[] = [
         theme.bold("⏱ 对话耗时统计"),
         "",
-        `  总轮次：${turnCount}`,
+        `  累计耗时：${formatDuration(totalDuration)}`,
       ];
 
       if (turnCount > 0) {
-        lines.push(`  累计耗时：${formatDuration(totalDuration)}`);
         const avg = Math.round(totalDuration / turnCount);
         lines.push(`  平均耗时：${formatDuration(avg)}`);
         lines.push(`  上一轮耗时：${formatDuration(lastTurnDuration)}`);
