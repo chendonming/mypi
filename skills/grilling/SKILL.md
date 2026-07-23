@@ -19,7 +19,7 @@ Extract what the user wants grilled. Ask for clarification only if the subject i
 
 ## Step 2: Launch parallel subagents
 
-Use `subagent()` with `async: true` to launch fact-gathering subagents in parallel. At minimum, launch a `scout` to explore the codebase/configuration relevant to the subject.
+Use `subagent()` with `async: true` to launch fact-gathering subagents in parallel. At minimum, launch a `scout` to explore the codebase/configuration relevant to the subject. When the subject involves **external factors** — third-party dependencies, security advisories, industry best practices, or tool comparisons — also add a `researcher` subagent to gather external context via web search.
 
 ```typescript
 // Detect the user's language from conversation context
@@ -53,11 +53,43 @@ const grillRun = subagent({
 })
 ```
 
+### Adding a researcher for external context
+
+When the subject involves external factors — third-party libraries, industry best practices, security advisories, or tool comparisons — add a `researcher` subagent alongside the scout:
+
+```typescript
+{
+  agent: "researcher",
+  task: `Research external information relevant to: ${subject}.
+  
+  Use web search to find:
+  - Latest versions and release notes of relevant libraries/tools
+  - Known security vulnerabilities (CVEs) and advisories
+  - Community best practices and migration guides
+  - Alternative approaches and their trade-offs
+  - Real-world adoption and migration experiences
+  
+  Return a structured summary of external findings: what options exist, their pros/cons, any critical risks or timeline considerations, and what's unclear or needs further investigation.
+  
+  Write your report in ${userLang}.`,
+  output: "grill-context/research-findings.md",
+  outputMode: "file-only",
+  progress: true
+}
+```
+
 Adjust the subagents depending on the subject:
 
-- **Architecture/design decisions**: Always include `scout` for local codebase context
-- **Security-sensitive**: Add a `reviewer`-style agent focused on security implications
-- **Simple code-level decisions**: Only `scout` may be sufficient
+| Scenario | Required | Recommended | Rationale |
+|----------|----------|-------------|-----------|
+| **Pure internal refactoring** (rename, split modules) | `scout` | — | Only local codebase context needed |
+| **Architecture / design decision** (introducing new patterns) | `scout` | `researcher` | External best practices and industry alternatives |
+| **Dependency / tool selection** (switching libraries, upgrading) | `scout` | `researcher` | Latest versions, CVEs, community migration experience |
+| **Security-sensitive** (auth, encryption, permissions) | `scout` | `researcher` + optionally `reviewer` | CVEs and evolving security best practices |
+| **Tech stack upgrade / migration** (Vue 2 → 3, etc.) | `scout` | `researcher` | Migration docs, EOL timelines, known pitfalls |
+| **Simple code-level decision** (implementation details) | `scout` | — | Scout is typically sufficient |
+
+> **Suggestion**: When in doubt, include `researcher` by default — the parallel overhead is minimal (just one extra task entry), and external context often reveals risks or opportunities invisible in the local codebase.
 
 ## Step 3: Wait for all subagents to finish
 
@@ -111,9 +143,34 @@ Do not implement, change, or commit anything until the user explicitly confirms 
 const subject = "migrating the auth module from JWT to session-based auth"
 
 // 2. Launch parallel fact gatherers
+//    scout → explore local codebase
+//    researcher → gather external security best practices and migration guides
 const grillRun = subagent({
   tasks: [
-    { agent: "scout", task: `Explore the codebase for everything relevant to: ${subject}. ...`, output: "grill-context/scout-findings.md", outputMode: "file-only", progress: true }
+    {
+      agent: "scout",
+      task: `Explore the codebase for everything relevant to: ${subject}. 
+      Look at current auth implementation, middleware, token handling, storage, tests.
+      Return a structured summary of findings.
+      Write your report in ${userLang}.`,
+      output: "grill-context/scout-findings.md",
+      outputMode: "file-only",
+      progress: true
+    },
+    {
+      agent: "researcher",
+      task: `Research external information relevant to: ${subject}.
+      Search for:
+      - JWT vs session auth security comparisons
+      - OWASP best practices for session management
+      - Known vulnerabilities in the current stack
+      - Real-world migration experiences (JWT → session)
+      Return a structured summary of findings.
+      Write your report in ${userLang}.`,
+      output: "grill-context/research-findings.md",
+      outputMode: "file-only",
+      progress: true
+    }
   ],
   concurrency: 2,
   async: true,
@@ -125,6 +182,8 @@ subagent_wait({ all: true })
 
 // 4. Read findings
 // (use read tool on the output files from the chain directory)
+//   → read "grill-context/scout-findings.md"
+//   → read "grill-context/research-findings.md"
 
 // 5. Interview one question at a time with recommendations
 ```
