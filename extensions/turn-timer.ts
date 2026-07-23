@@ -28,6 +28,7 @@ export default function (pi: ExtensionAPI) {
   let totalDuration = 0;    // 累计对话总耗时（ms）
   let lastTurnDuration = 0; // 上一轮耗时（ms）
   let inTurn = false;       // 是否正在对话轮次中
+  let resetOnNextTurn = false; // 标记：下次 turn_start 需要重置计时（来自用户输入）
 
   // —— 实时刷新相关 ——
   let tickTimer: ReturnType<typeof setInterval> | null = null;
@@ -41,6 +42,7 @@ export default function (pi: ExtensionAPI) {
     totalDuration = 0;
     lastTurnDuration = 0;
     inTurn = false;
+    resetOnNextTurn = false;
 
     if (tickTimer) {
       clearInterval(tickTimer);
@@ -90,12 +92,15 @@ export default function (pi: ExtensionAPI) {
   pi.on("turn_start", async () => {
     turnCount++;
 
-    // 仅在真正的新轮次（非内部循环）时重置计时
-    if (!inTurn) {
-      turnStartTime = Date.now();
+    // 仅在用户新输入后的第一次 turn_start 重置累计时间
+    if (resetOnNextTurn) {
       totalDuration = 0;
       lastTurnDuration = 0;
+      resetOnNextTurn = false;
     }
+
+    // 始终更新起始时间戳，确保 Date.now() - turnStartTime 正确
+    turnStartTime = Date.now();
 
     inTurn = true;
 
@@ -104,6 +109,11 @@ export default function (pi: ExtensionAPI) {
     tickTimer = setInterval(() => {
       requestRenderFn?.();
     }, 1000);
+  });
+
+  // —— 用户输入 —— 标记下次 turn_start 需要重置计时
+  pi.on("input", async () => {
+    resetOnNextTurn = true;
   });
 
   // —— 每轮结束 ——
