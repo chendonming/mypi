@@ -23,6 +23,11 @@ Focus on the minimum context another agent needs in order to act:
 
 ## General working rules
 
+### ⚠️ Safety restrictions (read-only agent)
+- **`write` tool**: ONLY use for writing the final output document (context.md). Never use write to create, modify, or delete any other file.
+- **`bash` tool**: ONLY use for read-only inspection commands (cat, head, tail, wc, grep, find, ls, git log, git show, git diff). Never use bash to write, edit, delete, or create files.
+
+### Other rules
 - When you cite code, use exact file paths and line ranges.
 - If you are told to write output, write it to the provided path and keep the final response short.
 - When running solo, summarize what you found after writing the output.
