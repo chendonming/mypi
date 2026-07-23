@@ -4,16 +4,33 @@
 
 ## 扩展
 
-### 1. question-tool
-为 pi 增加一个 `question` 工具，让 LLM 可以向用户弹出交互式选项列表，支持方向键选择、自定义输入。需要用户输入时会播放系统提示音吸引注意。
+### 1. memory-system
+持久化记忆系统，让 AI 能跨会话记住项目重要信息。每次对话开始时自动加载记忆索引，按需读取完整内容。
 
-### 2. task-complete-sound
+提供 6 个 LLM 工具：
+- `memory_read` — 按名称读取完整记忆
+- `memory_create` — 创建结构化知识条目（含 Why / How to apply）
+- `memory_create_from_session` — 保存当前对话为记忆
+- `memory_update` — 更新已有记忆
+- `memory_delete` — 删除记忆
+- `memory_search` — 全文搜索
+
+用户命令 `/memory` 支持：`save`、`add`、`search`、`open`、`clear`。
+
+每条记忆是一篇 Markdown 知识库文章，存储在 `~/.pi/memory/`，分 project（项目级）和 user（跨项目）两种作用域。
+
+> 详情见 [extensions/memory-system/README.md](extensions/memory-system/README.md)
+
+### 2. question-tool
+为 pi 增加一个 `question` 工具，让 LLM 可以向用户弹出交互式选项列表，支持方向键选择、自定义输入、多选模式。需要用户输入时会播放系统提示音吸引注意。
+
+### 3. task-complete-sound
 pi 完成任务后自动播放简短提示音（macOS `Glass.aiff`），让你知道任务完成了。
 
-### 3. turn-timer
+### 4. turn-timer
 对话计时扩展，记录每轮对话时长：
 - 对话中：输入框下方实时显示当前轮次耗时（每秒刷新）
-- 每轮结束时：状态栏显示该轮耗时和累计时间
+- 每轮结束时：累计计时，颜色随耗时变化（<30s 蓝色，<2min 黄色，≥2min 红色）
 - 支持 `/timing` 命令查看详细统计
 
 ## 技能
@@ -101,6 +118,9 @@ rm ~/.pi/agent/agents/worker.md
 ├── config/
 │   └── keybindings.json     # 按键配置（需手动安装）
 ├── extensions/              # 扩展（自动加载）
+│   ├── memory-system/       # 持久化记忆系统（扩展 + 6 个工具 + /memory 命令）
+│   │   ├── index.ts
+│   │   └── README.md
 │   ├── question-tool.ts
 │   ├── task-complete-sound.ts
 │   └── turn-timer.ts
@@ -114,6 +134,6 @@ rm ~/.pi/agent/agents/worker.md
 ```bash
 cd E:/workplace/mypi
 git add .
-git commit -m "update: add skills, agents, turn-timer"
+git commit -m "your commit message"
 git push -u origin main
 ```
