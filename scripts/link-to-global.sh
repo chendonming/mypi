@@ -6,11 +6,16 @@
 # 实现"在项目目录开发，全局即时生效"。
 #
 # 目录级别映射：
-#   project/extensions/  →  ~/.pi/agent/extensions/
-#   project/skills/      →  ~/.pi/agent/skills/
-#   project/agents/      →  ~/.pi/agent/agents/
+#   project/extensions/              →  ~/.pi/agent/extensions/
+#   project/skills/                  →  ~/.pi/agent/skills/
+#   project/agents/                  →  ~/.pi/agent/agents/
 #   config/keybindings.json          →  ~/.pi/agent/keybindings.json
 #   config/subagent-tool-description.md →  ~/.pi/agent/subagent-tool-description.md
+#
+# 注意：以下文件需手动复制（非符号链接）：
+#   config/settings.template.json          →  ~/.pi/agent/settings.json
+#   config/pi-wrapper.template.sh          →  ~/.local/bin/pi
+#   详见 AGENTS.md「完整性检查清单」
 #
 # 用法: bash scripts/link-to-global.sh
 #

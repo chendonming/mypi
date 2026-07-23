@@ -74,17 +74,60 @@ my-pi-tools/                    ←  ~/.pi/agent/           (符号链接)
 
 当前所有组件均通过符号链接指向项目文件，修改项目文件后 `/reload` 即可生效：
 
-| 类别 | 全局路径 | 来源 | 链接方式 |
+| 类别 | 全局路径 | 来源 | 管理方式 |
 |---|---|---|---|
-| **extensions/** | `~/.pi/agent/extensions/` | `extensions/` | 📁 目录级符号链接 |
-| **skills/** | `~/.pi/agent/skills/` | `skills/` | 📁 目录级符号链接 |
-| **agents/** | `~/.pi/agent/agents/` | `agents/` | 📁 目录级符号链接 |
-| **keybindings.json** | `~/.pi/agent/keybindings.json` | `config/keybindings.json` | 📄 文件符号链接 |
-| **subagent-tool-description.md** | `~/.pi/agent/subagent-tool-description.md` | `config/subagent-tool-description.md` | 📄 文件符号链接 |
+| **extensions/** | `~/.pi/agent/extensions/` | `extensions/` | 📁 符号链接 |
+| **skills/** | `~/.pi/agent/skills/` | `skills/` | 📁 符号链接 |
+| **agents/** | `~/.pi/agent/agents/` | `agents/` | 📁 符号链接 |
+| **keybindings.json** | `~/.pi/agent/keybindings.json` | `config/keybindings.json` | 📄 符号链接 |
+| **subagent-tool-description.md** | `~/.pi/agent/subagent-tool-description.md` | `config/subagent-tool-description.md` | 📄 符号链接 |
+| **subagent config.json** | `~/.pi/agent/extensions/subagent/config.json` | `extensions/subagent/config.json` | 📄 符号链接（通过 extensions/） |
+| **pi settings** | `~/.pi/agent/settings.json` | `config/settings.template.json` | 🟡 模板，手动复制 |
+| **pi wrapper** | `~/.local/bin/pi` | `config/pi-wrapper.template.sh` | 🟡 模板，手动复制 |
 
 ## 重新加载
 
 修改项目文件后，在 pi 内执行 `/reload` 热加载扩展和技能。符号链接会确保全局始终读取项目中的最新内容。
+
+---
+
+## 完整性检查清单
+
+新机器恢复后，或每次修改 pi 相关配置后，用此清单核对是否完整。
+
+### 🟢 通过符号链接管理（`link-to-global.sh` → git 跟踪）
+
+| # | 组件 | 项目路径 | 全局目标 | 说明 |
+|---|------|---------|---------|------|
+| 1 | **extensions/** | `extensions/` | `~/.pi/agent/extensions/` | 📁 整目录符号链接，扩展 `.ts` 文件 |
+| 2 | **skills/** | `skills/` | `~/.pi/agent/skills/` | 📁 整目录符号链接，SKILL.md |
+| 3 | **agents/** | `agents/` | `~/.pi/agent/agents/` | 📁 整目录符号链接，agent 定义 `.md` |
+| 4 | **keybindings.json** | `config/keybindings.json` | `~/.pi/agent/keybindings.json` | 📄 Enter 换行 / Alt+Enter 提交 |
+| 5 | **subagent-tool-description.md** | `config/subagent-tool-description.md` | `~/.pi/agent/subagent-tool-description.md` | 📄 意图→agent 映射表，需配合 toolDescriptionMode=custom |
+
+### 🟡 模板文件（项目 git 跟踪，手动复制到全局）
+
+| # | 组件 | 模板路径 | 全局目标 | 为何不能符号链接 |
+|---|------|---------|---------|----------------|
+| 6 | **pi settings.json** | `config/settings.template.json` | `~/.pi/agent/settings.json` | ⚠️ pi 运行时写入字段，符号链接触发备份逻辑 |
+| 7 | **pi wrapper 脚本** | `config/pi-wrapper.template.sh` | `~/.local/bin/pi` | 独立于 `~/.pi/agent/`，无法符号链接 |
+
+### 🔴 全局依赖（无法通过 git 恢复，需手动安装）
+
+| # | 组件 | 安装方式 | 版本要求 |
+|---|------|---------|---------|
+| 9 | **pi CLI** | `npm install -g @earendil-works/pi-coding-agent` | 与 `~/.pi/agent/settings.json` 中的 changelog 版本一致 |
+| 10 | **Node.js** | 通过 nvm 安装（当前：v22.9.0） | ≥ 18 |
+| 11 | **nvm** | 官网安装 | ≥ 0.40 |
+| 12 | **npm 包：pi-subagents** | pi 启动时自动按 settings.json packages 安装 | 由 pi 管理 |
+| 13 | **npm 包：pi-web-access** | pi 启动时自动按 settings.json packages 安装 | 由 pi 管理 |
+| 14 | **API 密钥 / 认证** | 各 provider 官网配置 | 按需 |
+
+修改 pi 配置后应执行：
+1. 核实是否有新增全局文件 → 添加到模板或符号链接
+2. 更新 `AGENTS.md` 的检查清单（仅在管理关系发生变化时）
+3. 更新 `link-to-global.sh`（如果新增了符号链接）
+4. git commit 推送到远程，确保其他成员 / 新机器可用
 
 ---
 
@@ -111,9 +154,27 @@ my-pi-tools/                    ←  ~/.pi/agent/           (符号链接)
 ### 首次部署到新机器
 
 ```bash
+# 1. 安装 pi CLI（需要先安装 Node.js ≥ 18）
+npm install -g @earendil-works/pi-coding-agent
+
+# 2. 克隆本项目
+cd ~/Documents
 git clone <repo-url>
 cd my-pi-tools
+
+# 3. 建立符号链接（扩展/技能/agent/按键映射）
 bash scripts/link-to-global.sh
+
+# 4. 复制 settings.json（pi 会写入此文件，不能符号链接）
+cp config/settings.template.json ~/.pi/agent/settings.json
+
+# 5. （可选）创建 pi wrapper 脚本，解决 nvm 多版本问题
+mkdir -p ~/.local/bin
+cp config/pi-wrapper.template.sh ~/.local/bin/pi
+chmod +x ~/.local/bin/pi
+
+# 6. 启动 pi，它会自动安装 settings.json 中声明的 npm 包
+pi
 ```
 
 ### 调试指南

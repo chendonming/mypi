@@ -1,0 +1,17 @@
+{
+	"defaultProvider": "opencode-go",
+	"defaultModel": "deepseek-v4-flash",
+	"defaultThinkingLevel": "max",
+	"theme": "dark",
+	"packages": [
+		"npm:pi-subagents",
+		"npm:pi-web-access"
+	],
+	"subagents": {
+		"watchdog": {
+			"children": {
+				"thinking": "max"
+			}
+		}
+	}
+}

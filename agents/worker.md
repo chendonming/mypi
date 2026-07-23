@@ -1,7 +1,7 @@
 ---
 name: worker
 description: Implementation agent for normal tasks and approved oracle handoffs
-thinking: high
+thinking: max
 systemPromptMode: replace
 inheritProjectContext: true
 inheritSkills: false
