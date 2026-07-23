@@ -371,7 +371,7 @@ function formatIndexForPrompt(entries: IndexEntry[], scopeLabel: string): string
 
   const lines: string[] = [`### ${scopeLabel}`];
   for (const e of entries) {
-    lines.push(`- [${e.type}] ${e.description}`);
+    lines.push(`- \`${e.name}\` [${e.type}] — ${e.description}`);
     if (e.tags.length > 0) lines.push(`  tags: ${e.tags.join(", ")}`);
   }
   lines.push("");
@@ -465,14 +465,16 @@ How to apply:
 - .xml/.yml/.properties/.vue/.ts 等不受影响，仍可用 read_file
 \`\`\`
 
-Also use \`memory_update\` to keep existing memories up-to-date, and \`memory_search\` to find relevant information before creating duplicates.
+Also use \`memory_update\` to keep existing memories up-to-date.
+The index above lists ALL memories — check it first to see if something already exists.
+Only call \`memory_search\` when you need deeper content-level keyword search.
 `;
 
     if (projectEntries.length === 0 && userEntries.length === 0) {
       return { systemPrompt: event.systemPrompt + guidelines };
     }
 
-    const parts: string[] = ["\n\n### Current memory index\n\nThe following memories exist: use `memory_read` to load full content, or `memory_search` to find specific info.\n"];
+    const parts: string[] = ["\n\n### Current memory index\n\nThe list below is the COMPLETE index of all existing memories.\nUse `memory_read` to load full content when an entry seems relevant.\nOnly use `memory_search` when you need deeper keyword matching beyond what the index shows.\n"];
 
     if (projectEntries.length > 0) {
       parts.push(formatIndexForPrompt(projectEntries, "Project"));
