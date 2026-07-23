@@ -103,25 +103,27 @@ my-pi-tools/                    ←  ~/.pi/agent/           (符号链接)
 | 2 | **skills/** | `skills/` | `~/.pi/agent/skills/` | 📁 整目录符号链接，SKILL.md |
 | 3 | **agents/** | `agents/` | `~/.pi/agent/agents/` | 📁 整目录符号链接，agent 定义 `.md` |
 | 4 | **keybindings.json** | `config/keybindings.json` | `~/.pi/agent/keybindings.json` | 📄 Enter 换行 / Alt+Enter 提交 |
-| 5 | **subagent-tool-description.md** | `config/subagent-tool-description.md` | `~/.pi/agent/subagent-tool-description.md` | 📄 意图→agent 映射表，需配合 toolDescriptionMode=custom |
+| 5 | **subagent-tool-description.md** | `config/subagent-tool-description.md` | `~/.pi/agent/subagent-tool-description.md` | 📄 意图→agent 映射表 + ⚠️ 强制委托规则 |
+| 6 | **delegation-enforcer.ts** | `extensions/delegation-enforcer.ts` | `~/.pi/agent/extensions/delegation-enforcer.ts` | ⚙️ 运行时强制：system prompt 注入 + tool_call 拦截 |
+| 7 | **delegation-rules skill** | `skills/delegation-rules/SKILL.md` | `~/.pi/agent/skills/delegation-rules/SKILL.md` | 📖 on-demand 规则参考 Skill |
 
 ### 🟡 模板文件（项目 git 跟踪，手动复制到全局）
 
 | # | 组件 | 模板路径 | 全局目标 | 为何不能符号链接 |
 |---|------|---------|---------|----------------|
-| 6 | **pi settings.json** | `config/settings.template.json` | `~/.pi/agent/settings.json` | ⚠️ pi 运行时写入字段，符号链接触发备份逻辑 |
-| 7 | **pi wrapper 脚本** | `config/pi-wrapper.template.sh` | `~/.local/bin/pi` | 独立于 `~/.pi/agent/`，无法符号链接 |
+| 8 | **pi settings.json** | `config/settings.template.json` | `~/.pi/agent/settings.json` | ⚠️ pi 运行时写入字段，符号链接触发备份逻辑 |
+| 9 | **pi wrapper 脚本** | `config/pi-wrapper.template.sh` | `~/.local/bin/pi` | 独立于 `~/.pi/agent/`，无法符号链接 |
 
 ### 🔴 全局依赖（无法通过 git 恢复，需手动安装）
 
 | # | 组件 | 安装方式 | 版本要求 |
 |---|------|---------|---------|
-| 9 | **pi CLI** | `npm install -g @earendil-works/pi-coding-agent` | 与 `~/.pi/agent/settings.json` 中的 changelog 版本一致 |
-| 10 | **Node.js** | 通过 nvm 安装（当前：v22.9.0） | ≥ 18 |
-| 11 | **nvm** | 官网安装 | ≥ 0.40 |
-| 12 | **npm 包：pi-subagents** | pi 启动时自动按 settings.json packages 安装 | 由 pi 管理 |
-| 13 | **npm 包：pi-web-access** | pi 启动时自动按 settings.json packages 安装 | 由 pi 管理 |
-| 14 | **API 密钥 / 认证** | 各 provider 官网配置 | 按需 |
+| 10 | **pi CLI** | `npm install -g @earendil-works/pi-coding-agent` | 与 `~/.pi/agent/settings.json` 中的 changelog 版本一致 |
+| 11 | **Node.js** | 通过 nvm 安装（当前：v22.9.0） | ≥ 18 |
+| 12 | **nvm** | 官网安装 | ≥ 0.40 |
+| 13 | **npm 包：pi-subagents** | pi 启动时自动按 settings.json packages 安装 | 由 pi 管理 |
+| 14 | **npm 包：pi-web-access | pi 启动时自动按 settings.json packages 安装 | 由 pi 管理 |
+| 15 | **API 密钥 / 认证** | 各 provider 官网配置 | 按需 |
 
 修改 pi 配置后应执行：
 1. 核实是否有新增全局文件 → 添加到模板或符号链接
