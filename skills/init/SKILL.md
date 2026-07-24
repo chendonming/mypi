@@ -1,11 +1,11 @@
 ---
 name: init
-description: Bootstrap or refresh a project's durable context file (PROJECT.md) — the concise, high-signal knowledge base folded into every future session. Use /init or /skill:init to analyze the codebase and produce a living project summary.
+description: Bootstrap or refresh a project's durable context file (AGENTS.md) — the concise, high-signal knowledge base loaded into every session. Use /init or /skill:init to analyze the codebase and produce a living project summary.
 ---
 
 # Init
 
-The user invoked `/init`: bootstrap (or refresh) this project's durable context file — a concise, high-signal `PROJECT.md` at the project root that captures what an agent needs to work effectively. This file is loaded into every future session via the `inheritProjectContext` convention, so **every line costs context** — keep it terse, specific, and actionable.
+The user invoked `/init`: bootstrap (or refresh) this project's durable context file — a concise, high-signal `AGENTS.md` at the project root that captures what an agent needs to work effectively. Pi auto-loads `AGENTS.md` (or `CLAUDE.md`) at startup from the project root and parent directories, so **every line costs context** — keep it terse, specific, and actionable.
 
 Also seed pi's persistent [memory system](#memories) with durable facts that survive even if the file evolves.
 
@@ -20,18 +20,15 @@ ls -la                      # project root listing
 ```
 
 Look for these files (in priority order):
-- `PROJECT.md` — pi's preferred context file name
-- `AGENTS.md` — Reasonix / Claude Code convention
-- `REASONIX.md` — Reasonix convention
-- `CLAUDEMD` — Claude Code convention
-- `.context.md` — generic markdown context
+- `AGENTS.md` — pi's default context file (auto-loaded at startup)
+- `CLAUDE.md` — pi's alternative context file (auto-loaded at startup)
 
 If one exists, **read it fully**, then **improve it in place** (fix stale facts, fill gaps, tighten prose) — write back to that same filename. Do **not** create a second file.
 
-If no project context file exists, check whether pi's `inheritProjectContext` already references something:
+If no project context file exists, check for any existing context references in the project:
 
 ```bash
-cat .pi/settings.json 2>/dev/null | grep -i inheritProjectContext || true
+cat .pi/settings.json 2>/dev/null || true
 ```
 
 ### Step 2: Explore the codebase
@@ -59,9 +56,9 @@ subagent({
 })
 ```
 
-### Step 3: Write or update PROJECT.md
+### Step 3: Write or update context file
 
-Write a file named `PROJECT.md` at the project root (unless an existing context file with another name was found — then update that file in place).
+Write a file named `AGENTS.md` at the project root (unless an existing context file with another name was found — then update that file in place). This ensures pi auto-loads it at startup.
 
 Structure (each section terse):
 
@@ -112,7 +109,7 @@ Only rules an agent must follow. Concrete patterns observed in the code (style, 
 
 ### Step 4: Seed pi memory entries
 
-After writing/updating `PROJECT.md`, create or update pi memory entries for the most durable facts — things that should survive even if `PROJECT.md` is lost or regenerated:
+After writing/updating the context file, create or update pi memory entries for the most durable facts — things that should survive even if the file is lost or regenerated:
 
 ```typescript
 // For each key fact, use memory_create or memory_update:
@@ -130,7 +127,7 @@ After writing, report in one or two lines:
 - What was captured (commands, modules, conventions)
 - The filename written
 - How many memory entries were created/updated
-- Ask the user to review and edit both `PROJECT.md` and the memories
+- Ask the user to review and edit both the context file and the memories
 
 ## Trigger
 
@@ -144,7 +141,7 @@ This skill runs when the user says:
 
 ## Notes
 
-- `PROJECT.md` is pi's default durable context file. If you use `inheritProjectContext` in `settings.json`, point it to your `PROJECT.md` — it will be read at session start.
+- `AGENTS.md` (or `CLAUDE.md`) is pi's default context file — auto-loaded at startup from the project root and parent directories. No special configuration needed. See the Context Files section in pi's README for details.
 - Pi's memory system (`memory_create`, `memory_search`, etc.) complements the file — use both for maximum durability.
 - When improving an existing file, preserve any content that remains accurate and relevant. Only rewrite sections that are stale, wrong, or missing.
 - Prefer `edit` (targeted changes) over `write` (full rewrite) when updating an existing context file — it preserves the file's history and avoids unnecessary churn.
