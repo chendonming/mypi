@@ -63,6 +63,7 @@ my-pi-tools/                    ←  ~/.pi/agent/           (符号链接)
 | `extensions/memory-system/` | 持久化记忆系统 | `memory_read` / `memory_create` / `memory_update` / `memory_delete` / `memory_search` / `memory_create_from_session` + `/memory` 命令 |
 | `extensions/question-tool.ts` | 交互式提问 | `question` 工具 |
 | `extensions/task-complete-sound.ts` | 完成提示音 | 自动播放 |
+| `extensions/post-task-validator.ts` | 任务后自动 git diff 校验 + 垃圾文件清理 | 自动（agent_settled 触发） |
 | `extensions/turn-timer.ts` | 对话计时 | `/timing` 命令 |
 
 ## Skills
@@ -191,6 +192,7 @@ python3 tools/session-view --ai -p my-pi-tools
 | 5 | **subagent-tool-description.md** | `config/subagent-tool-description.md` | `~/.pi/agent/subagent-tool-description.md` | 📄 意图→agent 映射表 + ⚠️ 强制委托规则 |
 | 6 | **delegation-enforcer.ts** | `extensions/delegation-enforcer.ts` | `~/.pi/agent/extensions/delegation-enforcer.ts` | ⚙️ 运行时强制：system prompt 注入 + tool_call 拦截 |
 | 7 | **delegation-rules skill** | `skills/delegation-rules/SKILL.md` | `~/.pi/agent/skills/delegation-rules/SKILL.md` | 📖 on-demand 规则参考 Skill |
+| 8 | **post-task-validator.ts** | `extensions/post-task-validator.ts` | `~/.pi/agent/extensions/post-task-validator.ts` | 🛡️ 任务后自动 git diff 校验 + 垃圾文件自动清理 |
 
 ### 🟡 模板文件（项目 git 跟踪，手动复制到全局）
 

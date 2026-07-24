@@ -55,3 +55,28 @@ Changed files: Y.
 Validation: Z.
 Open risks/questions: R.
 Recommended next step: N.
+
+## Post-Task Checklist
+
+Before declaring the task complete, run through these self-check steps:
+
+### 1. Change Review
+Run `git diff --name-status` to inspect all changes:
+- Any unexpected new files (check untracked with `git ls-files --others --exclude-standard`)?
+- Are all modified files within the task scope?
+- Are file paths and names reasonable?
+
+### 2. Garbage Cleanup
+Check for files that should not be committed:
+- Empty files
+- Temporary files (*.tmp, *.bak)
+- OS metadata files (.DS_Store, Thumbs.db)
+- Windows redirect artifacts (e.g., `nul`)
+- Test/debug scratch scripts
+
+If found, delete them (`rm` or `git checkout --`).
+
+### 3. Result Validation
+If the project has verification commands available, run them:
+- `package.json` with `lint`/`build`/`test` scripts → run them
+- `.codegraph` directory present → run `codegraph sync --quiet`
