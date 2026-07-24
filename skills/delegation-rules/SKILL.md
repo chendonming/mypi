@@ -95,5 +95,5 @@ subagent({
 | 计划并实现在一个请求中 | Chain：**planner → worker** |
 | 探索不熟悉的项目 | 调用 **scout** agent |
 | 实现功能 / 编写代码 / 修复 bug | 调用 **worker** agent |
-| 审查代码 / 检查 diff / 找 bug | 调用 **reviewer** agent |
+| 审查代码 / 检查 diff / 找 bug | 调用 **reviewer** agent，同时加载 `skill-router` 选择正确的语言 skill |
 | 调研主题 / 调查库 | 调用 **researcher** agent |
