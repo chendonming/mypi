@@ -1,99 +1,99 @@
 ---
 name: delegation-rules
-description: "⚠️ MANDATORY delegation behavior rules. You MUST read this skill when asked to plan, design architecture, plan-then-implement, scaffold a project, implement multiple features, review code, do research, or explore a codebase. This skill overrides any conflicting instructions."
+description: "强制委托行为规则。当你被要求制定计划、设计架构、先计划后实现、搭建项目脚手架、实现多个功能、审查代码、做调研或探索代码库时，必须阅读此技能。此技能覆盖任何冲突的指令。"
 ---
 
-# ⚠️ MANDATORY DELEGATION RULES
+# 强制委托规则
 
-> These rules are **NOT optional**. They take precedence over any other instructions.
-> Violations waste tokens, bypass human review checkpoints, and erode trust.
-
----
-
-## Rule 1: Planning MUST use planner agent
-
-When the user asks you to make a plan, design the architecture, or figure out how to approach something:
-
-**You MUST:**
-1. Call `subagent({ agent: "planner", task: "...", context: "fork" })`
-2. Present the plan to the user
-3. Wait for explicit confirmation
-
-**You MUST NOT:**
-- Create a plan yourself inline
-- Proceed to implementation in the same turn
+> 这些规则**不是可选的**。它们优先于任何其他指令。
+> 违规会浪费 token、绕过人工审查检查点、侵蚀信任。违反会被检测并上报。
 
 ---
 
-## Rule 2: Plan-then-implement MUST use chain
+## 规则 1：计划必须使用 planner agent
 
-When the user asks for both planning and implementation in one request:
+当用户要求你制定计划、设计架构或确定实现方案时：
 
-**You MUST use this chain:**
+**你必须：**
+1. 调用 `subagent({ agent: "planner", task: "...", context: "fork" })`
+2. 向用户展示计划
+3. 等待明确确认
+
+**你不得：**
+- 自己 inline 创建计划
+- 在同一轮中继续实现
+
+---
+
+## 规则 2：计划+实现必须使用 chain
+
+当用户在一个请求中同时要求计划和实现时：
+
+**你必须使用此 chain：**
 
 ```javascript
 subagent({
   chain: [
-    { agent: "planner", task: "Create implementation plan based on requirements" },
-    { agent: "worker", task: "Implement based on the plan" }
+    { agent: "planner", task: "根据需求创建实现计划" },
+    { agent: "worker", task: "根据计划实现" }
   ]
 })
 ```
 
-Or if codebase exploration is needed first:
+或者如果需要先探索代码库：
 
 ```javascript
 subagent({
   chain: [
-    { agent: "scout", task: "Explore codebase to understand current structure" },
-    { agent: "planner", task: "Create plan based on scout findings" },
-    { agent: "worker", task: "Implement based on the plan" }
+    { agent: "scout", task: "探索代码库以了解当前结构" },
+    { agent: "planner", task: "基于 scout 发现创建计划" },
+    { agent: "worker", task: "根据计划实现" }
   ]
 })
 ```
 
-**You MUST NOT:**
-- Start creating files before the planner finishes
-- Bypass the chain and do both yourself
+**你不得：**
+- 在 planner 完成之前开始创建文件
+- 绕过 chain 自行处理两者
 
 ---
 
-## Rule 3: After plan, MUST stop for confirmation
+## 规则 3：展示计划后必须暂停等待确认
 
-After ANY plan is presented:
-- **STOP**. Do not proceed further.
-- Present the plan clearly to the user.
-- Wait for the user to explicitly confirm before proceeding.
-- Only after confirmation, proceed with implementation (via worker agent).
+展示任何计划后：
+- **停止**。不要继续前进。
+- 清晰地向用户展示计划。
+- 等待用户明确确认后再继续。
+- 仅在确认后，继续实现（通过 worker agent）。
 
-**You MUST NOT:**
-- Start implementation in the same message as the plan
-- Create directories or files in the same turn as the plan
-- Assume implicit approval
-
----
-
-## Rule 4: Multi-file tasks MUST use worker agent
-
-When the task involves creating multiple files, scaffolding a new project, or implementing multiple pages or screens:
-
-**You MUST:**
-- Delegate implementation to `subagent({ agent: "worker", ... })`
-- Use the worker for file creation and modification
-
-**You MUST NOT:**
-- Create files directly for large tasks
-- Write multiple pages in one go without delegation
+**你不得：**
+- 在展示计划的同一消息中开始实现
+- 在展示计划的同一轮中创建目录或文件
+- 假设用户默认批准
 
 ---
 
-## Quick Decision Table
+## 规则 4：多文件任务必须使用 worker agent
 
-| If user asks you to... | You MUST... |
+当任务涉及创建多个文件、搭建新项目或实现多个页面/屏幕时：
+
+**你必须：**
+- 将实现委托给 `subagent({ agent: "worker", ... })`
+- 使用 worker 进行文件创建和修改
+
+**你不得：**
+- 对于大型任务直接创建文件
+- 在没有委托的情况下一次性编写多个页面
+
+---
+
+## 快速决策表
+
+| 如果用户要求... | 你必须... |
 |---|---|
-| Make a plan / design architecture / figure out approach | Call **planner** agent |
-| Plan AND implement in one request | Chain: **planner → worker** |
-| Explore an unfamiliar project | Call **scout** agent |
-| Implement a feature / write code / fix a bug | Call **worker** agent |
-| Review code / check a diff / find bugs | Call **reviewer** agent |
-| Research a topic / investigate a library | Call **researcher** agent |
+| 制定计划 / 设计架构 / 确定方案 | 调用 **planner** agent |
+| 计划并实现在一个请求中 | Chain：**planner → worker** |
+| 探索不熟悉的项目 | 调用 **scout** agent |
+| 实现功能 / 编写代码 / 修复 bug | 调用 **worker** agent |
+| 审查代码 / 检查 diff / 找 bug | 调用 **reviewer** agent |
+| 调研主题 / 调查库 | 调用 **researcher** agent |

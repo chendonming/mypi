@@ -165,7 +165,7 @@ export default function (pi: ExtensionAPI) {
 
       if (emptyNewFiles.length > 0) {
         lines.push(
-          `⚠️  发现 ${emptyNewFiles.length} 个空文件 (未自动删除): ${emptyNewFiles.join(", ")}`
+          `[警告] 发现 ${emptyNewFiles.length} 个空文件 (未自动删除): ${emptyNewFiles.join(", ")}`
         );
       }
 

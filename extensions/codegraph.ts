@@ -75,22 +75,22 @@ function buildDiscoveryHint(cwd: string): string {
 
 	const lines: string[] = [];
 	if (subdirs.length > 1) {
-		lines.push("Found multiple CodeGraph indexes in subdirectories:");
+		lines.push("在子目录中发现多个 CodeGraph 索引：");
 		for (const dir of subdirs) {
 			const rel = relative(cwd, dir) || ".";
-			lines.push(`  ${dir}/  (use -p "${rel}")`);
+			lines.push(`  ${dir}/  (使用 -p "${rel}")`);
 		}
 	}
 	if (parentHasIt) {
 		const rel = relative(cwd, parent) || "..";
-		lines.push(`  ${parent}/  (parent directory, use -p "${rel}")`);
+		lines.push(`  ${parent}/  (父目录，使用 -p "${rel}")`);
 	}
 
 	if (lines.length === 0) {
-		lines.push("No .codegraph directory found anywhere nearby.");
+		lines.push("附近未找到 .codegraph 目录。");
 	} else if (subdirs.length > 1) {
 		lines.unshift("");
-		lines.unshift("Specify which project to query using the -p parameter.");
+		lines.unshift("使用 -p 参数指定要查询的项目。");
 	}
 
 	return lines.join("\n");
@@ -103,61 +103,61 @@ export default function codegraphExtension(pi: ExtensionAPI) {
 		name: "codegraph",
 		label: "CodeGraph",
 		description:
-			"Explore codebase using CodeGraph's pre-built code intelligence index. " +
-			"Run status, explore topics, search symbols, trace callers/callees, analyze impact, list files. " +
-			"Auto-detects .codegraph in subdirectories for multi-project workspaces.",
+			"使用 CodeGraph 预构建的代码智能索引探索代码库。" +
+			"支持状态检查、区域探索、符号搜索、调用者/被调用者追踪、影响分析、文件列表。" +
+			"自动检测子目录中的 .codegraph 以支持多项目工作空间。",
 		promptSnippet:
-			"Explore codebase structure, search symbols, trace dependencies, and analyze impact via the CodeGraph CLI",
+			"通过 CodeGraph CLI 探索代码结构、搜索符号、追踪依赖、分析影响",
 		promptGuidelines: [
-			"Use codegraph with command:status to verify a .codegraph index exists before other commands",
-			"When cwd has no .codegraph, codegraph auto-scans subdirectories for multi-project workspaces — use -p <subdir> to target a specific project",
-			"Use codegraph explore for one-shot understanding of an area — returns relevant symbols plus call paths",
-			"Use codegraph query to search for specific symbols by name or pattern (optionally filtered by -k kind)",
-			"Use codegraph node to get a single symbol's full source with caller/callee trail",
-			"Use codegraph callers/callees to trace data and flow for a specific function or method",
-			"Use codegraph impact before making changes to understand what depends on a symbol",
-			"Use codegraph files to see the project file structure from the index",
+			"使用 codegraph 的 command:status 验证 .codegraph 索引存在后再执行其他命令",
+			"当 cwd 下没有 .codegraph 时，codegraph 自动扫描子目录以支持多项目工作空间 — 使用 -p <subdir> 指定目标项目",
+			"使用 codegraph explore 一次性了解某个区域 — 返回相关符号及调用路径",
+			"使用 codegraph query 按名称或模式搜索特定符号（可通过 -k kind 按类型过滤）",
+			"使用 codegraph node 获取单个符号的完整源码及 caller/callee 追踪",
+			"使用 codegraph callers/callees 追踪特定函数或方法的数据流和调用关系",
+			"修改代码前使用 codegraph impact 分析某个符号的依赖影响范围",
+			"使用 codegraph files 查看项目文件结构",
 		],
 		parameters: Type.Object({
 			command: StringEnum(
 				["status", "explore", "query", "node", "callers", "callees", "impact", "affected", "files"],
-				{ description: "CodeGraph CLI command to run" },
+				{ description: "要运行的 CodeGraph CLI 命令" },
 			),
 			query: Type.Optional(
 				Type.String({
 					description:
-						"Primary argument: symbol/topic for explore|query|node|callers|callees|impact, " +
-						"space-separated file paths for affected. Omitted for status|files.",
+						"主参数：explore|query|node|callers|callees|impact 为符号/主题名，" +
+						"affected 为空格分隔的文件路径。status|files 无需此参数。",
 				}),
 			),
 			path: Type.Optional(
 				Type.String({
 					description:
-						"Project path (defaults to auto-detect). Required when cwd is a parent directory and " +
-						"multiple subprojects have .codegraph — e.g. -p packages/frontend or -p ../other-project.",
+						"项目路径（默认自动检测）。当 cwd 为父目录且多个子项目有 .codegraph 时必填" +
+						" — 例如 -p packages/frontend 或 -p ../other-project。",
 				}),
 			),
 			kind: Type.Optional(
 				Type.String({
 					description:
-						"Symbol kind filter for query command, e.g. function, class, interface, method, variable",
+						"query 命令的符号类型过滤，如 function、class、interface、method、variable",
 				}),
 			),
 			limit: Type.Optional(
 				Type.Number({
-					description: "Max results (query|callers|callees). Default varies: 10 query, 20 callers/callees.",
+					description: "最大结果数（query|callers|callees）。默认：query 10 条，callers/callees 20 条。",
 				}),
 			),
 			depth: Type.Optional(
 				Type.Number({
-					description: "Traversal depth (impact|affected). Default: 2 impact, 5 affected.",
+					description: "遍历深度（impact|affected）。默认：impact 2 层，affected 5 层。",
 				}),
 			),
 			extraArgs: Type.Optional(
 				Type.String({
 					description:
-						"Extra CLI flags appended as-is, e.g. '--format flat --filter src/' (files), " +
-						"'--json' (query|callers|callees|impact|status|files), '--pattern *.ts' (files).",
+						"额外 CLI 参数，原样追加，如 '--format flat --filter src/'（files 命令）、" +
+						"'--json'（query|callers|callees|impact|status|files）、'--pattern *.ts'（files 命令）。",
 				}),
 			),
 		}),
@@ -174,7 +174,7 @@ export default function codegraphExtension(pi: ExtensionAPI) {
 					content: [
 						{
 							type: "text",
-							text: `.codegraph not found.${hint}`,
+							text: `未找到 .codegraph。${hint}`,
 						},
 					],
 					isError: false,
@@ -218,7 +218,7 @@ export default function codegraphExtension(pi: ExtensionAPI) {
 					content: [
 						{
 							type: "text",
-							text: output || "CodeGraph command ran successfully (no output).",
+							text: output || "CodeGraph 命令运行成功（无输出）。",
 						},
 					],
 				};
@@ -228,7 +228,7 @@ export default function codegraphExtension(pi: ExtensionAPI) {
 					content: [
 						{
 							type: "text",
-							text: `CodeGraph command failed:\n$ ${fullCmd}\n${detail}`,
+							text: `CodeGraph 命令失败：\n$ ${fullCmd}\n${detail}`,
 						},
 					],
 					isError: true,

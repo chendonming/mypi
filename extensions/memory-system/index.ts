@@ -297,7 +297,7 @@ function buildIndex(entries: IndexEntry[]): string {
   }
 
   if (projectEntries.length === 0 && feedbackEntries.length === 0) {
-    lines.push("_No memories yet. Use the memory tools to add some._", "");
+    lines.push("_暂无记忆。使用 memory 工具添加一些。_", "");
   }
 
   return lines.join("\n");
@@ -392,7 +392,7 @@ function getSessionId(ctx: any): string | undefined {
 }
 
 function listMemoriesAsText(entries: IndexEntry[]): string {
-  if (entries.length === 0) return "No memories yet.";
+  if (entries.length === 0) return "暂无记忆。";
   return entries
     .map(
       (e) =>
@@ -422,7 +422,7 @@ export default function (pi: ExtensionAPI) {
     const userEntries = readOrInitIndex(userIndexPath());
 
     if (entries.length > 0 || userEntries.length > 0) {
-      ctx.ui.notify(`Memory: ${entries.length} project + ${userEntries.length} user entries`, "info");
+      ctx.ui.notify(`记忆：${entries.length} 条项目 + ${userEntries.length} 条用户条目`, "info");
     }
   });
 
@@ -435,21 +435,21 @@ export default function (pi: ExtensionAPI) {
     const userEntries = readOrInitIndex(userIndexPath());
 
     const guidelines = `
-## Memory System
+## 记忆系统
 
-I maintain a persistent memory system (\`~/.pi/memory/\`) to store important project information across sessions. Each memory is a Markdown file — like a knowledge base article.
+我维护一个持久化的记忆系统 (\`~/.pi/memory/\`)，用于在多个会话之间保存重要的项目信息。每条记忆是一个 Markdown 文件 — 类似知识库文章。
 
-### How to create memories
+### 如何创建记忆
 
-When the user shares something worth remembering — a constraint, a workaround, a decision, deployment details, a recurring issue — synthesize it into a well-structured article using \`memory_create\`.
+当用户分享了值得记住的内容 — 约束条件、workaround、决策、部署细节、重复出现的问题 — 使用 \`memory_create\` 将其综合为结构良好的文章。
 
-**Don't just repeat the user's words verbatim.** Extract what matters, add context, and write a self-contained note that:
-- Explains the **context / problem** upfront
-- States the **key finding or conclusion** clearly
-- Includes **Why** — the reasoning or root cause
-- Includes **How to apply** — concrete actions, commands, or implications
+**不要逐字重复用户的话。** 提取关键内容，添加上下文，编写一篇自包含的笔记：
+- 前置说明**上下文/问题**
+- 清晰陈述**关键发现或结论**
+- 包含 **Why** — 推理或根本原因
+- 包含 **How to apply** — 具体操作、命令或影响
 
-A good example:
+好的示例：
 \`\`\`markdown
 公司环境对 Java 源文件（.java）进行了加密，导致 read_file 工具报告 "NUL byte detected" 无法读取。
 但 bash 工具（如 cat、python 读取）可以绕过此限制正常读取。
@@ -465,16 +465,16 @@ How to apply:
 - .xml/.yml/.properties/.vue/.ts 等不受影响，仍可用 read_file
 \`\`\`
 
-Also use \`memory_update\` to keep existing memories up-to-date.
-The index above lists ALL memories — check it first to see if something already exists.
-Only call \`memory_search\` when you need deeper content-level keyword search.
+也使用 \`memory_update\` 来保持现有记忆的最新状态。
+上方索引列出了所有记忆 — 先检查是否已有相关内容。
+仅在需要更深层的关键词匹配时使用 \`memory_search\`。
 `;
 
     if (projectEntries.length === 0 && userEntries.length === 0) {
       return { systemPrompt: event.systemPrompt + guidelines };
     }
 
-    const parts: string[] = ["\n\n### Current memory index\n\nThe list below is the COMPLETE index of all existing memories.\nUse `memory_read` to load full content when an entry seems relevant.\nOnly use `memory_search` when you need deeper keyword matching beyond what the index shows.\n"];
+    const parts: string[] = ["\n\n### 当前记忆索引\n\n以下列表是所有现有记忆的完整索引。\n当某个条目看起来相关时，使用 \`memory_read\` 加载完整内容。\n仅在索引无法满足更深层的关键词匹配时使用 \`memory_search\`。"];
 
     if (projectEntries.length > 0) {
       parts.push(formatIndexForPrompt(projectEntries, "Project"));
@@ -496,12 +496,12 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
   pi.registerTool({
     name: "memory_read",
     label: "Memory Read",
-    description: "Read the full content of a specific memory entry by its name",
-    promptSnippet: "Read a memory entry by name to get its full content",
+    description: "按名称读取特定记忆条目的完整内容",
+    promptSnippet: "按名称读取记忆条目以获取完整内容",
     parameters: Type.Object({
-      name: Type.String({ description: "Name of the memory entry to read" }),
+      name: Type.String({ description: "要读取的记忆条目名称" }),
       scope: Type.Optional(
-        StringEnum(["project", "user"] as const, { description: "Scope: project (default) or user" }),
+        StringEnum(["project", "user"] as const, { description: "作用域：project（默认）或 user" }),
       ),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
@@ -523,7 +523,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
           content: [
             {
               type: "text",
-              text: `Memory "${params.name}" not found in ${scope} scope. Available entries:\n${listMemoriesAsText(entries)}`,
+              text: `在 ${scope} 作用域中未找到记忆 "${params.name}"。可用条目：\n${listMemoriesAsText(entries)}`,
             },
           ],
         };
@@ -541,8 +541,8 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
         content: [
           {
             type: "text",
-            text: `# ${mem.frontmatter.name}\n\n**${mem.frontmatter.description}**\n\nType: ${mem.frontmatter.type} | Status: ${mem.frontmatter.status} | Created: ${mem.frontmatter.created_at}${
-              mem.frontmatter.updated_at ? ` | Updated: ${mem.frontmatter.updated_at}` : ""
+            text: `# ${mem.frontmatter.name}\n\n**${mem.frontmatter.description}**\n\n类型：${mem.frontmatter.type} | 状态：${mem.frontmatter.status} | 创建：${mem.frontmatter.created_at}${
+              mem.frontmatter.updated_at ? ` | 更新：${mem.frontmatter.updated_at}` : ""
             }\n\n${mem.content}`,
           },
         ],
@@ -556,26 +556,26 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
   pi.registerTool({
     name: "memory_create",
     label: "Memory Create",
-    description: "Create a new memory entry. Write it as a knowledge-base article: context, key finding, Why (reasoning), How to apply (actions).",
-    promptSnippet: "Synthesize user input into a structured knowledge note with context, Why, and How to apply",
+    description: "创建新的记忆条目。以知识库文章形式编写：上下文、关键发现、Why（推理）、How to apply（操作指引）。",
+    promptSnippet: "将用户输入综合为结构化知识笔记，包含上下文、Why 和 How to apply",
     promptGuidelines: [
-      "When the user shares something worth remembering, use memory_create to write a well-structured article.",
-      "Don't copy their words verbatim — extract key facts, add context from your project knowledge.",
-      "A good memory covers: context/problem → key finding → Why (reasoning/root cause) → How to apply (actions/implications).",
-      "Use memory_read to check existing memories before creating duplicates, and memory_update to refine existing ones.",
+      "当用户分享了值得记住的内容时，使用 memory_create 编写结构良好的文章。",
+      "不要逐字复制用户的话 — 提取关键事实，结合你的项目知识添加上下文。",
+      "好的记忆应涵盖：上下文/问题 → 关键发现 → Why（推理/根本原因）→ How to apply（操作/影响）。",
+      "创建新记忆前先用 memory_read 检查是否已有相关记忆，用 memory_update 完善已有记忆。",
     ],
     parameters: Type.Object({
-      name: Type.String({ description: "Unique name/identifier for this memory (lowercase-kebab-case)" }),
-      description: Type.String({ description: "One-line summary of what this memory contains" }),
+      name: Type.String({ description: "记忆的唯一名称/标识符（小写 kebab-case）" }),
+      description: Type.String({ description: "记忆内容的单行摘要" }),
       type: StringEnum(["project", "feedback"] as const, {
-        description: "project = static facts (architecture, deployment, constraints); feedback = learned patterns (preferences, repeated issues, workarounds)",
+        description: "project = 静态事实（架构、部署、约束）；feedback = 习得的模式（偏好、重复问题、workaround）",
       }),
-      content: Type.String({ description: "Memory body. Write it as a knowledge article: describe the context/problem, state the key finding, include Why (reasoning/root cause) and How to apply (actions/implications). Synthesize, don't just copy the user's words." }),
+      content: Type.String({ description: "记忆正文。以知识文章形式编写：描述上下文/问题，陈述关键发现，包含 Why（推理/根本原因）和 How to apply（操作/影响）。综合整理，不要仅复制用户原话。" }),
       tags: Type.Optional(
-        Type.Array(Type.String(), { description: "Optional tags for categorization (e.g. ['docker', 'devops'])" }),
+        Type.Array(Type.String(), { description: "可选标签，用于分类（如 ['docker', 'devops']）" }),
       ),
       scope: Type.Optional(
-        StringEnum(["project", "user"] as const, { description: "Scope: project (default) or user (cross-project)" }),
+        StringEnum(["project", "user"] as const, { description: "作用域：project（默认）或 user（跨项目）" }),
       ),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
@@ -587,7 +587,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
       // Validate name format
       const name = params.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
       if (!name) {
-        return { content: [{ type: "text", text: "Invalid name. Use lowercase kebab-case (e.g. 'zentao-deployment')." }] };
+        return { content: [{ type: "text", text: "无效的名称。请使用小写 kebab-case（如 'zentao-deployment'）。" }] };
       }
 
       const filename = `${name}.md`;
@@ -599,7 +599,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
           content: [
             {
               type: "text",
-              text: `Memory "${name}" already exists. Use memory_update to modify it, or choose a different name.`,
+              text: `记忆 "${name}" 已存在。使用 memory_update 修改，或选择其他名称。`,
             },
           ],
         };
@@ -633,7 +633,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
       saveIndex(indexPath, entries);
 
       return {
-        content: [{ type: "text", text: `✅ Memory "${name}" created (${scope}, ${params.type}).` }],
+        content: [{ type: "text", text: `已创建记忆 "${name}"（${scope}，${params.type}）。` }],
       };
     },
   });
@@ -644,22 +644,22 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
   pi.registerTool({
     name: "memory_update",
     label: "Memory Update",
-    description: "Update an existing memory entry's content, description, tags, or status",
-    promptSnippet: "Update an existing memory entry",
+    description: "更新现有记忆条目的内容、摘要、标签或状态",
+    promptSnippet: "更新现有记忆条目",
     parameters: Type.Object({
-      name: Type.String({ description: "Name of the memory entry to update" }),
-      description: Type.Optional(Type.String({ description: "New one-line summary" })),
-      content: Type.Optional(Type.String({ description: "New detailed content (replaces existing)" })),
+      name: Type.String({ description: "要更新的记忆条目名称" }),
+      description: Type.Optional(Type.String({ description: "新的单行摘要" })),
+      content: Type.Optional(Type.String({ description: "新的详细内容（替换现有内容）" })),
       tags: Type.Optional(
-        Type.Array(Type.String(), { description: "New tags" }),
+        Type.Array(Type.String(), { description: "新的标签" }),
       ),
       status: Type.Optional(
         StringEnum(["active", "superseded", "archived"] as const, {
-          description: "Mark as superseded (replaced by newer info) or archived (no longer relevant)",
+          description: "标记为 superseded（被新信息取代）或 archived（不再相关）",
         }),
       ),
       scope: Type.Optional(
-        StringEnum(["project", "user"] as const, { description: "Scope: project (default) or user" }),
+        StringEnum(["project", "user"] as const, { description: "作用域：project（默认）或 user" }),
       ),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
@@ -675,14 +675,14 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
 
       if (!match) {
         return {
-          content: [{ type: "text", text: `Memory "${params.name}" not found in ${scope} scope.` }],
+          content: [{ type: "text", text: `在 ${scope} 作用域中未找到记忆 "${params.name}"。` }],
         };
       }
 
       const filePath = path.join(baseDir, match.filename);
       const mem = readMemoryFile(filePath);
       if (!mem) {
-        return { content: [{ type: "text", text: `Cannot read memory file "${match.filename}".` }] };
+        return { content: [{ type: "text", text: `无法读取记忆文件 "${match.filename}"。` }] };
       }
 
       // Apply updates
@@ -706,7 +706,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
       if (params.status !== undefined) changes.push(`status → ${params.status}`);
 
       return {
-        content: [{ type: "text", text: `✅ Memory "${params.name}" updated: ${changes.join(", ")}.` }],
+        content: [{ type: "text", text: `已更新记忆 "${params.name}"：${changes.join("，")}。` }],
       };
     },
   });
@@ -717,12 +717,12 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
   pi.registerTool({
     name: "memory_delete",
     label: "Memory Delete",
-    description: "Delete a memory entry permanently",
-    promptSnippet: "Delete a memory entry",
+    description: "永久删除记忆条目",
+    promptSnippet: "删除记忆条目",
     parameters: Type.Object({
-      name: Type.String({ description: "Name of the memory entry to delete" }),
+      name: Type.String({ description: "要删除的记忆条目名称" }),
       scope: Type.Optional(
-        StringEnum(["project", "user"] as const, { description: "Scope: project (default) or user" }),
+        StringEnum(["project", "user"] as const, { description: "作用域：project（默认）或 user" }),
       ),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
@@ -737,7 +737,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
       );
 
       if (idx === -1) {
-        return { content: [{ type: "text", text: `Memory "${params.name}" not found.` }] };
+        return { content: [{ type: "text", text: `未找到记忆 "${params.name}"。` }] };
       }
 
       const match = entries[idx];
@@ -748,7 +748,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
       saveIndex(indexPath, entries);
 
       return {
-        content: [{ type: "text", text: `🗑️ Memory "${params.name}" deleted.` }],
+        content: [{ type: "text", text: `🗑️ 已删除记忆 "${params.name}"。` }],
       };
     },
   });
@@ -759,12 +759,12 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
   pi.registerTool({
     name: "memory_search",
     label: "Memory Search",
-    description: "Search across all memory entries by keyword. Searches names, descriptions, tags, and full content.",
-    promptSnippet: "Search memories by keyword",
+    description: "按关键词搜索所有记忆条目。搜索范围包括名称、摘要、标签和全文内容。",
+    promptSnippet: "按关键词搜索记忆",
     parameters: Type.Object({
-      query: Type.String({ description: "Search keyword or phrase" }),
+      query: Type.String({ description: "搜索关键词或短语" }),
       type: Type.Optional(
-        StringEnum(["project", "feedback"] as const, { description: "Optional: filter by memory type" }),
+        StringEnum(["project", "feedback"] as const, { description: "可选：按记忆类型过滤" }),
       ),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
@@ -778,13 +778,13 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
       const filteredUser = params.type ? userResults.filter((r) => r.type === params.type) : userResults;
 
       if (filteredProject.length === 0 && filteredUser.length === 0) {
-        return { content: [{ type: "text", text: `No memories found matching "${params.query}".` }] };
+        return { content: [{ type: "text", text: `未找到匹配 "${params.query}" 的记忆。` }] };
       }
 
-      const parts: string[] = [`Search results for "${params.query}":`, ""];
+      const parts: string[] = [`搜索 "${params.query}" 的结果：`, ""];
 
       if (filteredProject.length > 0) {
-        parts.push(`**Project (${filteredProject.length}):**`);
+        parts.push(`**项目 (${filteredProject.length}):**`);
         for (const r of filteredProject) {
           parts.push(`- **${r.name}** [${r.type}] — ${r.description}`);
           parts.push(`  \`memory_read name="${r.name}"\``);
@@ -794,7 +794,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
       }
 
       if (filteredUser.length > 0) {
-        parts.push(`**User (${filteredUser.length}):**`);
+        parts.push(`**用户 (${filteredUser.length}):**`);
         for (const r of filteredUser) {
           parts.push(`- **${r.name}** [${r.type}] — ${r.description}`);
           parts.push(`  \`memory_read name="${r.name}" scope=user\``);
@@ -812,26 +812,26 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
   pi.registerTool({
     name: "memory_create_from_session",
     label: "Memory from Session",
-    description: "Summarize the current conversation and create a structured memory entry from it. Use when the user asks to save or remember what was discussed.",
-    promptSnippet: "Capture this conversation as a memory — reads the session and synthesizes into a structured note",
+    description: "总结当前对话并创建结构化记忆条目。当用户要求保存或记住讨论内容时使用。",
+    promptSnippet: "将本次对话捕获为记忆 — 读取会话内容并综合为结构化笔记",
     promptGuidelines: [
-      "When the user asks to \"remember this\", \"save this discussion\", or similar, use memory_create_from_session instead of memory_create.",
-      "It automatically reads the conversation and you provide the synthesis — no need to reconstruct from memory.",
+      "当用户说"记住这个"、"保存一下讨论"或类似内容时，使用 memory_create_from_session 而不是 memory_create。",
+      "它会自动读取对话内容，你只需提供综合整理 — 无需凭记忆重建。",
     ],
     parameters: Type.Object({
-      name: Type.String({ description: "Name/identifier for this memory (lowercase-kebab-case)" }),
-      description: Type.String({ description: "One-line summary of what was discussed or decided" }),
-      synthesis: Type.String({ description: "Your structured synthesis of the conversation. Include: context/problem, key findings/conclusions, Why (reasoning/root cause), How to apply (actions/implications). Synthesize, don't just repeat." }),
+      name: Type.String({ description: "记忆的名称/标识符（小写 kebab-case）" }),
+      description: Type.String({ description: "讨论或决定内容的单行摘要" }),
+      synthesis: Type.String({ description: "对话的结构化综合。包含：上下文/问题、关键发现/结论、Why（推理/根本原因）、How to apply（操作/影响）。综合整理，不要仅重复。" }),
       type: Type.Optional(
         StringEnum(["project", "feedback"] as const, {
-          description: "project (default) or feedback",
+          description: "project（默认）或 feedback",
         }),
       ),
       tags: Type.Optional(
-        Type.Array(Type.String(), { description: "Optional tags for categorization" }),
+        Type.Array(Type.String(), { description: "可选标签，用于分类" }),
       ),
       scope: Type.Optional(
-        StringEnum(["project", "user"] as const, { description: "Scope: project (default) or user (cross-project)" }),
+        StringEnum(["project", "user"] as const, { description: "作用域：project（默认）或 user（跨项目）" }),
       ),
     }),
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
@@ -844,7 +844,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
       // Validate and normalize name
       const name = params.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
       if (!name) {
-        return { content: [{ type: "text", text: "Invalid name. Use lowercase kebab-case." }] };
+        return { content: [{ type: "text", text: "无效的名称。请使用小写 kebab-case。" }] };
       }
 
       const filename = `${name}.md`;
@@ -856,7 +856,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
           content: [
             {
               type: "text",
-              text: `Memory "${name}" already exists. Use memory_update to modify it, or choose a different name.`,
+              text: `记忆 "${name}" 已存在。使用 memory_update 修改，或选择其他名称。`,
             },
           ],
         };
@@ -934,9 +934,9 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
         content: [
           {
             type: "text",
-            text: `✅ Memory "${name}" created from session (${scope}/${type}).` +
-              `\n\nSummary: ${params.description}` +
-              (params.tags && params.tags.length > 0 ? `\nTags: ${params.tags.join(", ")}` : ""),
+            text: `已从会话创建记忆 "${name}"（${scope}/${type}）。` +
+              `\n\n摘要：${params.description}` +
+              (params.tags && params.tags.length > 0 ? `\n标签：${params.tags.join("，")}` : ""),
           },
         ],
       };
@@ -947,7 +947,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
   // COMMAND: /memory — user-facing memory management
   // ──────────────────────────────────────────────
   pi.registerCommand("memory", {
-    description: "View and manage memories. Usage: /memory | /memory add <desc> | /memory search <q> | /memory clear | /memory open <name>",
+    description: "查看和管理记忆。用法：/memory | /memory add <描述> | /memory search <关键词> | /memory clear | /memory open <名称>",
     handler: async (args, ctx) => {
       const projectSlug = getProjectSlug(ctx.cwd);
       const projectEntries = readOrInitIndex(projectIndexPath(projectSlug));
@@ -959,7 +959,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
       if (trimmed.startsWith("search ")) {
         const query = trimmed.slice(7).trim();
         if (!query) {
-          ctx.ui.notify("Usage: /memory search <query>", "warning");
+          ctx.ui.notify("用法：/memory search <关键词>", "warning");
           return;
         }
         const projectResults = searchInDir(projectDir(projectSlug), query);
@@ -967,7 +967,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
 
         let msg = `Search "${query}":\n`;
         if (projectResults.length === 0 && userResults.length === 0) {
-          msg += "No results found.";
+          msg += "未找到结果。";
         } else {
           for (const r of projectResults) msg += `\n📄 ${r.name} [project] — ${r.snippet}`;
           for (const r of userResults) msg += `\n📄 ${r.name} [user] — ${r.snippet}`;
@@ -980,7 +980,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
       if (trimmed.startsWith("add ")) {
         const text = trimmed.slice(4).trim();
         if (!text) {
-          ctx.ui.notify("Usage: /memory add <description>", "warning");
+          ctx.ui.notify("用法：/memory add <描述>", "warning");
           return;
         }
 
@@ -1018,7 +1018,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
         }
 
         if (!content) {
-          ctx.ui.notify("Usage: /memory add <text>\n  /memory add --user <text>\n  /memory add --type project <text>", "warning");
+          ctx.ui.notify("用法：/memory add <文本>\n  /memory add --user <文本>\n  /memory add --type project <文本>", "warning");
           return;
         }
 
@@ -1040,7 +1040,7 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
 
         // 检查重名
         if (fs.existsSync(filePath)) {
-          ctx.ui.notify(`Memory "${name}" already exists. Try: /memory open ${name}`, "warning");
+          ctx.ui.notify(`记忆 "${name}" 已存在。试试：/memory open ${name}`, "warning");
           return;
         }
 
@@ -1069,8 +1069,8 @@ Only call \`memory_search\` when you need deeper content-level keyword search.
         entries.push({ name, filename, description: content, tags: [], type: detectedType });
         saveIndex(indexPath, entries);
 
-        ctx.ui.notify(`✅ 已创建记忆：${name} — ${content} (${targetScope}/${detectedType})` +
-          `\n💡 AI 后续会自动完善上下文和操作指引`, "info");
+        ctx.ui.notify(`已创建记忆：${name} — ${content} (${targetScope}/${detectedType})` +
+          `\nAI 后续会自动完善上下文和操作指引`, "info");
         return;
       }
 
@@ -1163,7 +1163,7 @@ ${conversationBody}
           entries.push({ name, filename, description, tags: [], type: "project" });
           saveIndex(projectIndexPath(projectSlug), entries);
 
-          ctx.ui.notify(`✅ 对话已保存为记忆：${name}\n📄 ${description}\n💡 对 AI 说 "帮我整理一下 ${name}" 来让 AI 总结提炼`, "info");
+          ctx.ui.notify(`对话已保存为记忆：${name}\n${description}\n对 AI 说 "帮我整理一下 ${name}" 来让 AI 总结提炼`, "info");
         } catch (err) {
           ctx.ui.notify(`保存失败：${err}`, "error");
         }
@@ -1172,9 +1172,9 @@ ${conversationBody}
 
       // /memory clear
       if (trimmed === "clear") {
-        const confirm = await ctx.ui.confirm("Clear all memories?", "This permanently deletes all project memory files and index.");
+        const confirm = await ctx.ui.confirm("清除所有记忆？", "这将永久删除所有项目记忆文件和索引。");
         if (!confirm) {
-          ctx.ui.notify("Cancelled.", "info");
+          ctx.ui.notify("已取消。", "info");
           return;
         }
 
@@ -1186,7 +1186,7 @@ ${conversationBody}
           }
         }
         saveIndex(projectIndexPath(projectSlug), []);
-        ctx.ui.notify("All project memories cleared.", "info");
+        ctx.ui.notify("所有项目记忆已清除。", "info");
         return;
       }
 
@@ -1200,7 +1200,7 @@ ${conversationBody}
           isUser = true;
         }
         if (!match) {
-          ctx.ui.notify(`Memory "${name}" not found. Try /memory search ${name}`, "warning");
+          ctx.ui.notify(`未找到记忆 "${name}"。试试 /memory search ${name}`, "warning");
           return;
         }
         const baseDir = isUser ? userDir() : projectDir(projectSlug);
@@ -1213,7 +1213,7 @@ ${conversationBody}
       }
 
       // Default: /memory — show summary with usage guide
-      let summary = "📚 Memory Summary\n";
+      let summary = "📚 记忆摘要\n";
 
       if (projectEntries.length > 0) {
         summary += `\nProject (${projectEntries.length}):\n`;

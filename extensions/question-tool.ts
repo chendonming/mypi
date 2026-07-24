@@ -40,19 +40,19 @@ interface QuestionDetails {
 
 // Options with labels and optional descriptions
 const OptionSchema = Type.Object({
-  label: Type.String({ description: "Display label for the option" }),
+  label: Type.String({ description: "选项的显示标签" }),
   description: Type.Optional(
-    Type.String({ description: "Optional description shown below label" }),
+    Type.String({ description: "可选描述，显示在标签下方" }),
   ),
 });
 
 const QuestionParams = Type.Object({
-  question: Type.String({ description: "The question to ask the user" }),
+  question: Type.String({ description: "向用户提出的问题" }),
   options: Type.Array(OptionSchema, {
-    description: "Options for the user to choose from",
+    description: "供用户选择的选项列表",
   }),
   multiple: Type.Optional(
-    Type.Boolean({ description: "Allow multiple selections (Space to toggle, Enter to confirm)" }),
+    Type.Boolean({ description: "允许多选（Space 切换选中，Enter 确认）" }),
   ),
 });
 
@@ -69,14 +69,14 @@ export default function question(pi: ExtensionAPI) {
     name: "question",
     label: "Question",
     description:
-      "Ask the user a question and let them pick from options. Use when you need user input to proceed.",
+      "向用户提问并让其从选项中做出选择。需要用户输入才能继续时使用。",
     promptSnippet:
-      "Ask the user a question with options when you need clarification, confirmation, or a decision",
+      "当需要澄清、确认或决策时，向用户提问并展示选项",
     promptGuidelines: [
-      "Use question tool when you need user input, clarification, confirmation, or a decision to proceed",
-      "Do NOT guess or make assumptions when you could ask the user via question tool",
-      "Provide clear, specific options for the user to choose from",
-      "Set multiple: true when the user can pick more than one option",
+      "当需要用户输入、澄清、确认或决策才能继续时，使用 question 工具",
+      "不要猜测或假设用户的选择，应通过 question 工具询问",
+      "提供清晰、具体的选项供用户选择",
+      "当用户可以多选时，设置 multiple: true",
     ],
     parameters: QuestionParams,
     executionMode: "sequential",

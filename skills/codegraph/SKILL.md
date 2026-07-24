@@ -1,197 +1,196 @@
 ---
 name: codegraph
-description: Pre-built code intelligence for any codebase — search symbols, trace callers/callees, explore areas, analyze impact, list file structure. Use for codebase navigation and dependency analysis.
+description: 预构建的代码智能工具，适用于任何代码库 — 搜索符号、追踪 caller/callee、探索区域、分析影响、列出文件结构。用于代码库导航和依赖分析。
 ---
 
 # CodeGraph
 
-[CodeGraph](https://codegraph.sh) builds a searchable index of your codebase and provides a CLI for fast, targeted exploration. Works with any language.
+[CodeGraph](https://codegraph.sh) 为你的代码库构建可搜索的索引，并提供 CLI 用于快速、有针对性的探索。适用于任何语言。
 
-## Prerequisites
+## 前提条件
 
-- `codegraph` CLI installed (`which codegraph`)
-- Project has a `.codegraph` directory (run `codegraph init` if missing)
-- The extension's `codegraph` tool auto-detects `.codegraph` in:
-  - Current working directory
-  - Parent directory (pi opened inside a project subfolder)
-  - Immediate subdirectories (multi-project workspace)
-- When multiple .codegraph indexes exist, use `-p <subdir>` to target one
+- 已安装 `codegraph` CLI（`which codegraph`）
+- 项目拥有 `.codegraph` 目录（如果缺失，运行 `codegraph init`）
+- 扩展的 `codegraph` 工具会自动检测 `.codegraph` 位于：
+  - 当前工作目录
+  - 父目录（pi 在项目子文件夹中打开）
+  - 直接子目录（多项目工作空间）
+- 当存在多个 .codegraph 索引时，使用 `-p <subdir>` 指定目标
 
-## Quick Start
+## 快速开始
 
 ```bash
-# Check if index is ready
+# 检查索引是否就绪
 codegraph status
 
-# Explore an area (one shot — symbols + source + call paths)
-codegraph explore "user authentication flow"
+# 探索某个区域（一键获取：符号 + 源码 + 调用路径）
+codegraph explore "用户认证流程"
 
-# Search for a symbol
+# 搜索符号
 codegraph query sendEmail -k function
 
-# See a symbol's full source + caller/callee trail
+# 查看单个符号的完整源码 + caller/callee 追踪
 codegraph node SessionManager
 
-# Trace dependencies
+# 追踪依赖关系
 codegraph callers authenticateUser
 codegraph callees authenticateUser
 
-# Analyze change impact before refactoring
+# 重构前分析变更影响
 codegraph impact validateToken
 
-# List project structure
+# 列出项目结构
 codegraph files --format tree --max-depth 3
 ```
 
-## Command Reference
+## 命令参考
 
 ### `codegraph status [path]`
 
-Check index status and statistics.
+检查索引状态和统计信息。
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `-j` | JSON output |
+| `-j` | JSON 输出 |
 
 ### `codegraph explore <query...>`
 
-One-shot exploration: relevant symbols' source + call paths.
+一键探索：相关符号的源码 + 调用路径。
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `-p <path>` | Project path |
-| `--max-files <n>` | Max files to include source from |
+| `-p <path>` | 项目路径 |
+| `--max-files <n>` | 包含源码的最大文件数 |
 
-Use this as your **default first command** when investigating an unfamiliar area.
+在调查陌生区域时，将其作为**默认首选命令**。
 
 ### `codegraph query <search>`
 
-Search for symbols in the codebase.
+在代码库中搜索符号。
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `-k <kind>` | Filter by kind: `function`, `class`, `interface`, `method`, `variable`, `type`, `enum` |
-| `-l <n>` | Max results (default: 10) |
-| `-p <path>` | Project path |
-| `-j` | JSON output |
+| `-k <kind>` | 按类型过滤：`function`、`class`、`interface`、`method`、`variable`、`type`、`enum` |
+| `-l <n>` | 最大结果数（默认：10） |
+| `-p <path>` | 项目路径 |
+| `-j` | JSON 输出 |
 
 ### `codegraph node [name]`
 
-One symbol's source + caller/callee trail. Also reads a file with line numbers and dependent info.
+单个符号的源码 + caller/callee 追踪。也可以按文件模式读取（带行号及相关信息）。
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `-f <file>` | Treat as file mode (or disambiguate a symbol to this file) |
-| `--offset <n>` | File mode: 1-based start line |
-| `--limit <n>` | File mode: max lines |
-| `--symbols-only` | File mode: just symbol map + dependents |
-| `-p <path>` | Project path |
+| `-f <file>` | 按文件模式处理（或将符号限定到该文件） |
+| `--offset <n>` | 文件模式：从第几行开始（1-based） |
+| `--limit <n>` | 文件模式：最大行数 |
+| `--symbols-only` | 文件模式：仅输出符号映射 + 依赖信息 |
+| `-p <path>` | 项目路径 |
 
 ### `codegraph callers <symbol>`
 
-Find all functions/methods that call a specific symbol.
+查找调用特定符号的所有函数/方法。
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `-l <n>` | Max results (default: 20) |
-| `-p <path>` | Project path |
-| `-j` | JSON output |
+| `-l <n>` | 最大结果数（默认：20） |
+| `-p <path>` | 项目路径 |
+| `-j` | JSON 输出 |
 
 ### `codegraph callees <symbol>`
 
-Find all functions/methods that a specific symbol calls.
+查找特定符号调用的所有函数/方法。
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `-l <n>` | Max results (default: 20) |
-| `-p <path>` | Project path |
-| `-j` | JSON output |
+| `-l <n>` | 最大结果数（默认：20） |
+| `-p <path>` | 项目路径 |
+| `-j` | JSON 输出 |
 
 ### `codegraph impact <symbol>`
 
-Analyze what code is affected by changing a symbol.
+分析修改某个符号会影响哪些代码。
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `-d <n>` | Traversal depth (default: 2) |
-| `-p <path>` | Project path |
-| `-j` | JSON output |
+| `-d <n>` | 遍历深度（默认：2） |
+| `-p <path>` | 项目路径 |
+| `-j` | JSON 输出 |
 
-Run this **before refactoring** to understand blast radius.
+在进行**重构之前**运行此命令以了解影响范围。
 
 ### `codegraph affected [files...]`
 
-Find test files affected by changed source files.
+查找受变更源文件影响的测试文件。
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--stdin` | Read file list from stdin (one per line) |
-| `-d <n>` | Max dependency traversal depth (default: 5) |
-| `-f <glob>` | Custom glob filter for test files (e.g. `"e2e/*.spec.ts"`) |
-| `-p <path>` | Project path |
-| `-j` | JSON output |
-| `-q` | Only output file paths, no decoration |
+| `--stdin` | 从 stdin 读取文件列表（每行一个） |
+| `-d <n>` | 最大依赖遍历深度（默认：5） |
+| `-f <glob>` | 自定义测试文件 glob 过滤器（如 `"e2e/*.spec.ts"`） |
+| `-p <path>` | 项目路径 |
+| `-j` | JSON 输出 |
+| `-q` | 仅输出文件路径，无装饰 |
 
 ### `codegraph files`
 
-Show project file structure from the index.
+显示索引中的项目文件结构。
 
-| Option | Description |
+| 选项 | 说明 |
 |--------|-------------|
-| `--format <fmt>` | Output format: `tree`, `flat`, `grouped` (default: tree) |
-| `--max-depth <n>` | Max directory depth for tree format |
-| `--filter <dir>` | Filter to files under this directory |
-| `--pattern <glob>` | Filter files by glob pattern |
-| `--no-metadata` | Hide file metadata (language, symbol count) |
-| `-p <path>` | Project path |
-| `-j` | JSON output |
+| `--format <fmt>` | 输出格式：`tree`、`flat`、`grouped`（默认：tree） |
+| `--max-depth <n>` | tree 格式的最大目录深度 |
+| `--filter <dir>` | 过滤到此目录下的文件 |
+| `--pattern <glob>` | 按 glob 模式过滤文件 |
+| `--no-metadata` | 隐藏文件元数据（语言、符号数） |
+| `-p <path>` | 项目路径 |
+| `-j` | JSON 输出 |
 
-## Multi-Project Workspaces
+## 多项目工作空间
 
-When pi is opened at a parent directory containing multiple sub-projects, each
-with their own `.codegraph`:
+当 pi 在包含多个子项目（各自拥有 `.codegraph`）的父目录中打开时：
 
 ```
-root/                      ← pi opened here
+root/                      ← pi 在此打开
 ├── frontend/
-│   └── .codegraph         ← codegraph init'd
+│   └── .codegraph         ← 已 codegraph init
 └── backend/
-    └── .codegraph         ← codegraph init'd
+    └── .codegraph         ← 已 codegraph init
 ```
 
-The `codegraph` tool auto-scans for `.codegraph` in subdirectories.
-If exactly one is found, it is used automatically.
-If multiple are found, the tool returns a hint listing all available indexes
-and the LLM should retry with the `-p` parameter:
+`codegraph` 工具自动扫描子目录中的 `.codegraph`。
+如果恰好找到一个，自动使用。
+如果找到多个，工具返回提示列出所有可用索引，
+LLM 应使用 `-p` 参数重试：
 
 ```
-# Target frontend project
+# 指定 frontend 项目
 codegraph  command:status  path:"frontend"
 
-# Target backend project
+# 指定 backend 项目
 codegraph  command:query  query:"AuthService"  path:"backend"
 ```
 
-### How auto-detection works
+### 自动检测的工作原理
 
-1. Check the current working directory first
-2. If not found, check the parent directory
-3. If still not found, scan immediate subdirectories (depth 2)
-4. If exactly one candidate is found, use it automatically
-5. If multiple are found, report them and let the LLM pick via `-p`
+1. 首先检查当前工作目录
+2. 如果未找到，检查父目录
+3. 如果仍未找到，扫描直接子目录（深度 2）
+4. 如果恰好找到一个候选，自动使用
+5. 如果找到多个，报告它们并让 LLM 通过 `-p` 选择
 
-## Workflow Patterns
+## 工作流模式
 
-### Investigating a new area
+### 调查新区域
 
 ```bash
 codegraph status
-codegraph explore "payment processing"
+codegraph explore "支付处理"
 codegraph node PaymentService
 codegraph callers PaymentService.process
 ```
 
-### Before refactoring a function
+### 重构函数之前
 
 ```bash
 codegraph impact validateInput
@@ -199,19 +198,19 @@ codegraph callers validateInput
 codegraph callees validateInput
 ```
 
-### Finding related test files
+### 查找相关测试文件
 
 ```bash
 codegraph affected src/services/auth.ts
 ```
 
-### Browsing project structure
+### 浏览项目结构
 
 ```bash
 codegraph files --format tree --max-depth 4 --filter src/
 codegraph query --kind class -l 20
 ```
 
-## Fallback
+## 后备方案
 
-If the project does not have a `.codegraph` directory, use `grep`, `find`, `ls`, and `read` instead.
+如果项目没有 `.codegraph` 目录，改为使用 `grep`、`find`、`ls` 和 `read`。

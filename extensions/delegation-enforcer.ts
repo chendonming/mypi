@@ -47,30 +47,30 @@ function newTurnState(): TurnState {
 
 const SYSTEM_PROMPT_RULES = `
 
-## ⚠️ MANDATORY DELEGATION RULES
+## 强制委托规则
 
-These rules override any conflicting instructions.
+这些规则覆盖任何冲突的指令。违反会被检测并上报。
 
-### R1 — Planning MUST use planner agent
-When the user asks you to make a plan, design architecture, or figure out an approach:
-→ You MUST call \`subagent({ agent: "planner", ... })\`
-→ Do NOT create a plan yourself inline.
+### R1 — 计划必须使用 planner agent
+当用户要求你制定计划、设计架构或确定实现方案时：
+→ 你必须调用 \`subagent({ agent: "planner", ... })\`
+→ 不要自己 inline 创建计划。
 
-### R2 — Plan-then-implement MUST use chain
-When the user asks for both planning and implementation in one request:
-→ You MUST use \`subagent({ chain: [{ agent: "planner" }, { agent: "worker" }] })\`
-→ Do NOT combine plan + implementation in the same turn.
+### R2 — 计划+实现必须使用 chain
+当用户在一个请求中同时要求计划和实现时：
+→ 你必须使用 \`subagent({ chain: [{ agent: "planner" }, { agent: "worker" }] })\`
+→ 不要在同一轮中混合计划和实现。
 
-### R3 — After presenting a plan, MUST wait for confirmation
-After presenting ANY plan:
-→ STOP. Present it to the user.
-→ Wait for explicit confirmation before proceeding.
-→ Do NOT start implementation in the same message as the plan.
+### R3 — 展示计划后必须等待确认
+展示任何计划后：
+→ 停止。向用户展示计划。
+→ 等待用户明确确认后再继续。
+→ 不要在展示计划的同一消息中开始实现。
 
-### R4 — Multi-file tasks MUST use worker
-When creating multiple files or scaffolding a project:
-→ Delegate implementation to \`subagent({ agent: "worker", ... })\`
-→ Do NOT create project files directly.
+### R4 — 多文件任务必须使用 worker
+当需要创建多个文件或搭建项目脚手架时：
+→ 将实现委托给 \`subagent({ agent: "worker", ... })\`
+→ 不要直接创建项目文件。
 
 `;
 
@@ -125,12 +125,12 @@ export default function (pi: ExtensionAPI) {
     // should have been delegated.
     if (turn.fileWriteCalls >= 3 && turn.subagentCalls === 0) {
       feedbackNote = [
-        "### ℹ️ Reminder: Consider delegation",
+        "### 提醒：考虑使用委托",
         "",
-        "You created or modified several files in the previous turn",
-        "without delegating to a subagent. For multi-file tasks,",
-        "consider using subagent({ agent: 'worker', ... }) or",
-        "subagent({ chain: [..., { agent: 'worker' }] }).",
+        "你在上一轮中创建或修改了多个文件",
+        "但没有委托给 subagent。对于多文件任务，",
+        "请考虑使用 subagent({ agent: 'worker', ... }) 或",
+        "subagent({ chain: [..., { agent: 'worker' }] })。",
       ].join("\n");
     }
   });

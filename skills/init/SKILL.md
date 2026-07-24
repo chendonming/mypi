@@ -1,147 +1,147 @@
 ---
 name: init
-description: Bootstrap or refresh a project's durable context file (AGENTS.md) — the concise, high-signal knowledge base loaded into every session. Use /init or /skill:init to analyze the codebase and produce a living project summary.
+description: 初始化或刷新项目的持久化上下文文件（AGENTS.md）— 在每个会话中加载的简洁、高信号知识库。使用 /init 或 /skill:init 分析代码库并生成一个活的项目摘要。
 ---
 
 # Init
 
-The user invoked `/init`: bootstrap (or refresh) this project's durable context file — a concise, high-signal `AGENTS.md` at the project root that captures what an agent needs to work effectively. Pi auto-loads `AGENTS.md` (or `CLAUDE.md`) at startup from the project root and parent directories, so **every line costs context** — keep it terse, specific, and actionable.
+用户调用了 `/init`：初始化（或刷新）此项目的持久化上下文文件 — 项目根目录下一个简洁、高信号的 `AGENTS.md`，包含 agent 有效工作所需的内容。Pi 在启动时自动从项目根目录和父目录加载 `AGENTS.md`（或 `CLAUDE.md`），因此**每一行都消耗上下文** — 保持精炼、具体、可操作。
 
-Also seed pi's persistent [memory system](#memories) with durable facts that survive even if the file evolves.
+同时将持久化的事实写入 pi 的 [memory 系统](#memories)，使其即使文件演变也能存活。
 
-## Operation
+## 操作
 
-### Step 1: Discover existing context
+### 步骤 1：发现现有上下文
 
-Check for an existing durable context file. List the project root and common filenames:
+检查是否存在持久化上下文文件。列出项目根目录和常见文件名：
 
 ```bash
-ls -la                      # project root listing
+ls -la                      # 项目根目录列表
 ```
 
-Look for these files (in priority order):
-- `AGENTS.md` — pi's default context file (auto-loaded at startup)
-- `CLAUDE.md` — pi's alternative context file (auto-loaded at startup)
+按优先级查找以下文件：
+- `AGENTS.md` — pi 的默认上下文文件（启动时自动加载）
+- `CLAUDE.md` — pi 的替代上下文文件（启动时自动加载）
 
-If one exists, **read it fully**, then **improve it in place** (fix stale facts, fill gaps, tighten prose) — write back to that same filename. Do **not** create a second file.
+如果存在一个，**完整读取**，然后**原地改进**（修正过时事实、填补缺口、精炼文字）— 写回同一文件名。不要**创建第二个文件。
 
-If no project context file exists, check for any existing context references in the project:
+如果项目没有上下文文件，检查项目中任何现有的上下文引用：
 
 ```bash
 cat .pi/settings.json 2>/dev/null || true
 ```
 
-### Step 2: Explore the codebase
+### 步骤 2：探索代码库
 
-Gather enough to be accurate — not exhaustive. Explore in parallel where possible:
+收集足够准确的信息 — 不需要详尽。尽可能并行探索：
 
-1. **Project shape** — directory listing, manifest (`go.mod`, `package.json`, `pyproject.toml`, `Cargo.toml`, `composer.json`, `build.gradle`, etc.), README.
+1. **项目形态** — 目录列表、清单文件（`go.mod`、`package.json`、`pyproject.toml`、`Cargo.toml`、`composer.json`、`build.gradle` 等）、README。
 
-2. **Build / test / run / lint commands** — derive from the manifest + scripts (e.g., `npm run` scripts, Makefile targets, `go task`, `cargo` subcommands, `just` recipes). **Verify the exact command names by reading the files** — do not guess.
+2. **构建/测试/运行/检查命令** — 从清单 + 脚本中推导（如 `npm run` 脚本、Makefile targets、`go task`、`cargo` 子命令、`just` recipes）。**通过读取文件验证确切的命令名称** — 不要猜测。
 
-3. **Architecture** — the main packages/modules and how they fit; entry point(s). Read `main.go`, `src/index.ts`, `main.py`, `lib/`, `cmd/`, etc.
+3. **架构** — 主要包/模块及其关系；入口点。读取 `main.go`、`src/index.ts`、`main.py`、`lib/`、`cmd/` 等。
 
-4. **Conventions** — formatting (formatter config: `.prettierrc`, `rustfmt.toml`, `go fmt`, `black`), naming, error handling, testing patterns. **Infer from real code** — read 2–5 representative files.
+4. **约定** — 格式化（格式化器配置：`.prettierrc`、`rustfmt.toml`、`go fmt`、`black`）、命名、错误处理、测试模式。**从真实代码中推断** — 读取 2-5 个代表性文件。
 
-**Efficient exploration technique:** Use `subagent` with parallel `scout` tasks to explore different areas simultaneously:
+**高效探索技巧：** 使用 `subagent` 搭配并行 `scout` 任务同时探索不同区域：
 
 ```typescript
 subagent({
   tasks: [
-    { agent: "scout", task: "Explore project structure: list root, read manifest and README, find entry points" },
-    { agent: "scout", task: "Discover build/test commands: read package.json scripts, Makefile, taskfile, Justfile, etc." },
-    { agent: "scout", task: "Read 3-5 representative source files to infer conventions (error handling, naming, testing patterns, imports)" },
+    { agent: "scout", task: "探索项目结构：列出根目录、读取清单和 README、查找入口点" },
+    { agent: "scout", task: "发现构建/测试命令：读取 package.json scripts、Makefile、taskfile、Justfile 等" },
+    { agent: "scout", task: "读取 3-5 个代表性源文件以推断约定（错误处理、命名、测试模式、导入）" },
   ],
   concurrency: 3,
 })
 ```
 
-### Step 3: Write or update context file
+### 步骤 3：编写或更新上下文文件
 
-Write a file named `AGENTS.md` at the project root (unless an existing context file with another name was found — then update that file in place). This ensures pi auto-loads it at startup.
+在项目根目录写入名为 `AGENTS.md` 的文件（除非发现已有其他名称的上下文文件 — 则在原地更新该文件）。这确保 pi 在启动时自动加载它。
 
-Structure (each section terse):
+结构（每节精炼）：
 
 ```markdown
-# ProjectName
+# 项目名称
 
-One-line description of the project.
+项目的一句话描述。
 
-## Project
+## 项目
 
-What it is, the tech stack, where the entry point lives.
+它是什么、技术栈、入口点位置。
 
-## Commands
+## 命令
 
 ```bash
-# Build
-<exact build command>
+# 构建
+<确切的构建命令>
 
-# Test
-<exact test command>
+# 测试
+<确切的测试命令>
 
-# Run
-<exact run command>
+# 运行
+<确切的运行命令>
 
-# Lint / Format
-<exact lint command>
+# 检查/格式化
+<确切的检查命令>
 ```
 
-## Architecture
+## 架构
 
-3–7 load-bearing modules/directories and their roles. Include file paths.
+3-7 个核心模块/目录及其角色。包含文件路径。
 
-## Conventions
+## 约定
 
-Only rules an agent must follow. Concrete patterns observed in the code (style, naming, error handling, testing, imports). Be specific — "Errors use Go-style `if err != nil`" not "handle errors properly".
+仅列出 agent 必须遵守的规则。代码中观察到的具体模式（风格、命名、错误处理、测试、导入）。要具体 — "错误使用 Go 风格的 `if err != nil`" 而非 "妥善处理错误"。
 
-## Notes
+## 备注
 
-<!-- Empty stub for later quick-adds during development -->
+<!-- 开发过程中快速添加的空占位符 -->
 ```
 
-**Rules:**
-- Prefer specifics (file paths, exact command names) over prose.
-- Verify every command against actual files before writing — a wrong build command is worse than none.
-- Never fabricate conventions the code doesn't demonstrate.
-- Never include secrets, credentials, or personal paths.
-- A `<!-- comments -->` convention keeps Notes expandable without bloating the visible file.
+**规则：**
+- 优先使用具体内容（文件路径、确切命令名）而非冗长描述。
+- 在写入前对照实际文件验证每条命令 — 错误的构建命令比没有更糟糕。
+- 绝不编造代码未体现的约定。
+- 绝不包含密钥、凭证或个人路径。
+- `<!-- 注释 -->` 约定使备注可扩展而不会膨胀可见文件。
 
-### Step 4: Seed pi memory entries
+### 步骤 4：写入 pi memory 条目
 
-After writing/updating the context file, create or update pi memory entries for the most durable facts — things that should survive even if the file is lost or regenerated:
+在写入/更新上下文文件后，为最持久的事实创建或更新 pi memory 条目 — 即使文件丢失或被重新生成也应存活的内容：
 
 ```typescript
-// For each key fact, use memory_create or memory_update:
-// - The project's tech stack and entry point
-// - Critical build/test commands
-// - Architectural decisions with reasoning
-// - Known gotchas or workarounds (as type: "feedback")
+// 对每条关键事实，使用 memory_create 或 memory_update：
+// - 项目的技术栈和入口点
+// - 关键构建/测试命令
+// - 架构决策及推理
+// - 已知坑点或 workaround（作为 type: "feedback"）
 ```
 
-This makes the knowledge searchable via `memory_search` and persistent across context resets.
+这使得知识可通过 `memory_search` 搜索，并在上下文重置后持久存在。
 
-### Step 5: Report
+### 步骤 5：报告
 
-After writing, report in one or two lines:
-- What was captured (commands, modules, conventions)
-- The filename written
-- How many memory entries were created/updated
-- Ask the user to review and edit both the context file and the memories
+写入后用一两行报告：
+- 捕获了什么（命令、模块、约定）
+- 写入的文件名
+- 创建/更新了多少条 memory 条目
+- 请用户审查和编辑上下文文件和 memory
 
-## Trigger
+## 触发条件
 
-This skill runs when the user says:
+当用户说出以下内容时触发此技能：
 - `/init`
 - `/skill:init`
-- "initialize this project"
+- "初始化这个项目"
 - "bootstrap project context"
-- "create project memory"
-- "set up this project"
+- "创建项目记忆"
+- "设置这个项目"
 
-## Notes
+## 备注
 
-- `AGENTS.md` (or `CLAUDE.md`) is pi's default context file — auto-loaded at startup from the project root and parent directories. No special configuration needed. See the Context Files section in pi's README for details.
-- Pi's memory system (`memory_create`, `memory_search`, etc.) complements the file — use both for maximum durability.
-- When improving an existing file, preserve any content that remains accurate and relevant. Only rewrite sections that are stale, wrong, or missing.
-- Prefer `edit` (targeted changes) over `write` (full rewrite) when updating an existing context file — it preserves the file's history and avoids unnecessary churn.
+- `AGENTS.md`（或 `CLAUDE.md`）是 pi 的默认上下文文件 — 启动时自动从项目根目录和父目录加载。无需特殊配置。详见 pi 的 README 中的 Context Files 部分。
+- Pi 的 memory 系统（`memory_create`、`memory_search` 等）补充该文件 — 两者结合使用以实现最大持久性。
+- 改进现有文件时，保留仍然准确和相关的内容。仅重写过时、错误或缺失的部分。
+- 更新现有上下文文件时优先使用 `edit`（有针对性的更改）而非 `write`（全量重写）— 这能保留文件历史并避免不必要的改动。
