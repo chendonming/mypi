@@ -85,7 +85,7 @@ export default function (pi: ExtensionAPI) {
       // 有参数 → 一次性 Ask 模式
       askState = "one-shot";
       notifyMode(ctx, "one-shot");
-      await ctx.sendUserMessage(args.trim());
+      pi.sendUserMessage(args.trim());
     },
   });
 
