@@ -177,7 +177,7 @@ export default function codegraphExtension(pi: ExtensionAPI) {
 							text: `未找到 .codegraph。${hint}`,
 						},
 					],
-					isError: false,
+					details: {},
 				};
 			}
 
@@ -221,6 +221,7 @@ export default function codegraphExtension(pi: ExtensionAPI) {
 							text: output || "CodeGraph 命令运行成功（无输出）。",
 						},
 					],
+					details: {},
 				};
 			} catch (err: any) {
 				const detail = err.stderr?.trim() || err.message?.trim() || String(err);
@@ -231,7 +232,7 @@ export default function codegraphExtension(pi: ExtensionAPI) {
 							text: `CodeGraph 命令失败：\n$ ${fullCmd}\n${detail}`,
 						},
 					],
-					isError: true,
+					details: {},
 				};
 			}
 		},

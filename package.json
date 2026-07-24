@@ -2,7 +2,9 @@
   "name": "my-pi-tools",
   "version": "1.0.0",
   "description": "个人 pi 扩展包：question-tool 交互提问 + task-complete-sound 完成提示音 + 按键配置 + 自定义技能",
-  "keywords": ["pi-package"],
+  "keywords": [
+    "pi-package"
+  ],
   "license": "MIT",
   "type": "module",
   "author": "chendonming",
@@ -16,7 +18,15 @@
     "typebox": "*"
   },
   "pi": {
-    "extensions": ["./extensions/*.ts"],
-    "skills": ["./skills"]
+    "extensions": [
+      "./extensions/*.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^7.0.2"
   }
 }

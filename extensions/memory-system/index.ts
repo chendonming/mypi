@@ -526,6 +526,7 @@ How to apply:
               text: `在 ${scope} 作用域中未找到记忆 "${params.name}"。可用条目：\n${listMemoriesAsText(entries)}`,
             },
           ],
+          details: {},
         };
       }
 
@@ -534,6 +535,7 @@ How to apply:
       if (!mem) {
         return {
           content: [{ type: "text", text: `Memory file "${match.filename}" exists in index but cannot be read.` }],
+          details: {},
         };
       }
 
@@ -546,6 +548,7 @@ How to apply:
             }\n\n${mem.content}`,
           },
         ],
+        details: {},
       };
     },
   });
@@ -587,7 +590,7 @@ How to apply:
       // Validate name format
       const name = params.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
       if (!name) {
-        return { content: [{ type: "text", text: "无效的名称。请使用小写 kebab-case（如 'zentao-deployment'）。" }] };
+        return { content: [{ type: "text", text: "无效的名称。请使用小写 kebab-case（如 'zentao-deployment'）。" }], details: {} };
       }
 
       const filename = `${name}.md`;
@@ -602,6 +605,7 @@ How to apply:
               text: `记忆 "${name}" 已存在。使用 memory_update 修改，或选择其他名称。`,
             },
           ],
+          details: {},
         };
       }
 
@@ -634,6 +638,7 @@ How to apply:
 
       return {
         content: [{ type: "text", text: `已创建记忆 "${name}"（${scope}，${params.type}）。` }],
+        details: {},
       };
     },
   });
@@ -676,13 +681,14 @@ How to apply:
       if (!match) {
         return {
           content: [{ type: "text", text: `在 ${scope} 作用域中未找到记忆 "${params.name}"。` }],
+          details: {},
         };
       }
 
       const filePath = path.join(baseDir, match.filename);
       const mem = readMemoryFile(filePath);
       if (!mem) {
-        return { content: [{ type: "text", text: `无法读取记忆文件 "${match.filename}"。` }] };
+        return { content: [{ type: "text", text: `无法读取记忆文件 "${match.filename}"。` }], details: {} };
       }
 
       // Apply updates
@@ -707,6 +713,7 @@ How to apply:
 
       return {
         content: [{ type: "text", text: `已更新记忆 "${params.name}"：${changes.join("，")}。` }],
+        details: {},
       };
     },
   });
@@ -737,7 +744,7 @@ How to apply:
       );
 
       if (idx === -1) {
-        return { content: [{ type: "text", text: `未找到记忆 "${params.name}"。` }] };
+        return { content: [{ type: "text", text: `未找到记忆 "${params.name}"。` }], details: {} };
       }
 
       const match = entries[idx];
@@ -749,6 +756,7 @@ How to apply:
 
       return {
         content: [{ type: "text", text: `🗑️ 已删除记忆 "${params.name}"。` }],
+        details: {},
       };
     },
   });
@@ -778,7 +786,7 @@ How to apply:
       const filteredUser = params.type ? userResults.filter((r) => r.type === params.type) : userResults;
 
       if (filteredProject.length === 0 && filteredUser.length === 0) {
-        return { content: [{ type: "text", text: `未找到匹配 "${params.query}" 的记忆。` }] };
+        return { content: [{ type: "text", text: `未找到匹配 "${params.query}" 的记忆。` }], details: {} };
       }
 
       const parts: string[] = [`搜索 "${params.query}" 的结果：`, ""];
@@ -802,7 +810,7 @@ How to apply:
         }
       }
 
-      return { content: [{ type: "text", text: parts.join("\n") }] };
+      return { content: [{ type: "text", text: parts.join("\n") }], details: {} };
     },
   });
 
@@ -844,7 +852,7 @@ How to apply:
       // Validate and normalize name
       const name = params.name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
       if (!name) {
-        return { content: [{ type: "text", text: "无效的名称。请使用小写 kebab-case。" }] };
+        return { content: [{ type: "text", text: "无效的名称。请使用小写 kebab-case。" }], details: {} };
       }
 
       const filename = `${name}.md`;
@@ -859,6 +867,7 @@ How to apply:
               text: `记忆 "${name}" 已存在。使用 memory_update 修改，或选择其他名称。`,
             },
           ],
+          details: {},
         };
       }
 
@@ -900,6 +909,7 @@ How to apply:
               (params.tags && params.tags.length > 0 ? `\n标签：${params.tags.join("，")}` : ""),
           },
         ],
+        details: {},
       };
     },
   });
