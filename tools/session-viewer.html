@@ -318,6 +318,7 @@ a:hover{text-decoration:underline}
   <!-- Actions -->
   <div class="actions" id="actions">
     <button class="action-btn primary" onclick="copyAiSummary()">📋 复制 AI 摘要</button>
+    <span id="tokenInfo" style="font-size:12px;color:var(--text2);margin-left:4px;font-family:var(--font)"></span>
     <button class="action-btn" onclick="expandAll()">📖 全部展开</button>
     <button class="action-btn" onclick="collapseAll()">📕 全部折叠</button>
   </div>
@@ -523,6 +524,15 @@ function render() {
   // Also include events that are message type and form the main chain
   // Simpler approach: linear render with tree expansion for tool results
   renderLinear(events);
+
+  // Update token info next to copy button with estimated summary size
+  const tokenInfo = document.getElementById('tokenInfo');
+  if (tokenInfo) {
+    const summary = generateAiSummary();
+    const charCount = summary.length;
+    const estTokens = Math.max(1, Math.round(charCount / 4));
+    tokenInfo.textContent = `📊 ~${fmtTokens(estTokens)} tok（摘要）`;
+  }
 }
 
 function renderStats(events) {
@@ -535,13 +545,15 @@ function renderStats(events) {
   let modelCounts = {};
 
   events.forEach(ev => {
-    if (ev.type === 'message' && ev.message?.role === 'assistant' && ev.usage) {
-      const u = ev.usage;
+    if (ev.type === 'message' && ev.message?.role === 'assistant') {
+      const msg = ev.message || {};
+      const u = msg.usage || ev.usage;
+      if (!u) return;
       totalInput += u.input || 0;
       totalOutput += u.output || 0;
       totalReasoning += u.reasoning || 0;
       if (u.cost) totalCost += u.cost.total || u.cost || 0;
-      const key = `${ev.provider || '?'}/${ev.model || '?'}`;
+      const key = `${msg.provider || ev.provider || '?'}/${msg.model || ev.model || '?'}`;
       modelCounts[key] = (modelCounts[key] || 0) + 1;
     }
   });
@@ -659,7 +671,7 @@ function renderLinear(events) {
     if (role === 'assistant') {
       const modelInfo = eventModel.get(ev.id);
       const modelStr = modelInfo ? `${modelInfo.provider}/${modelInfo.model}` : '';
-      const usage = ev.usage || {};
+      const usage = (ev.message && ev.message.usage) || ev.usage || {};
       const cost = usage.cost?.total || usage.cost || 0;
       const stopReason = ev.stopReason || '';
 
@@ -1084,7 +1096,7 @@ function generateAiSummary() {
           if (c.type === 'thinking') th += (c.thinking || '').length;
           else if (c.type === 'toolCall') tc++;
         }
-        const usg = ev.usage || {};
+        const usg = (ev.message && ev.message.usage) || ev.usage || {};
         ti += usg.input || 0;
         to += usg.output || 0;
         const cst = usg.cost || {};
@@ -1114,13 +1126,17 @@ function generateAiSummary() {
 
     if (role === 'user') {
       ui++;
-      const text = content.filter(c => c.type === 'text').map(c => c.text || '').join('');
+      let text = content.filter(c => c.type === 'text').map(c => c.text || '').join('');
+      // Compress skill invocations: <skill name="xxx">…</skill> → compact note
+      text = text.replace(/<skill\s+name="([^"]+)"[^>]*>[\s\S]*?<\/skill>/g, (m, name) => {
+        return `📋 **调用技能:** \`${name}\``;
+      });
       lines.push(`### 👤 User #${ui}\n`);
       lines.push(text + '\n');
     } else if (role === 'assistant') {
       ai++;
       const label = `${ev.provider||'?'}/${ev.model||'?'}`;
-      const usg = ev.usage || {};
+      const usg = (ev.message && ev.message.usage) || ev.usage || {};
       const cst = typeof usg.cost === 'object' ? (usg.cost.total || 0) : (typeof usg.cost === 'number' ? usg.cost : 0);
       const costTag = cst > 0 ? ` 💰 $${cst.toFixed(4)}` : '';
       const tokTag = usg.input ? ` [${fmtTokens(usg.input)}/${fmtTokens(usg.output)} tok]` : '';
