@@ -83,3 +83,17 @@ pi
 | Node.js ≥ 18 | nvm |
 | pi-subagents / pi-web-access | pi 启动时自动安装 |
 | API 密钥 | 各 provider 官网配置 |
+
+### 语言约定
+
+本项目所有 prompt（扩展描述、SKILL.md、agent 定义、工具描述等）遵循统一的语言规则：
+
+| 内容类型 | 语言 | 示例 |
+|---|---|---|
+| 技术术语 | **英文** | `subagent`、`codegraph`、`diff`、`rebase`、`JWT`、`caller/callee` |
+| 框架标识符 | **英文** | 工具名（`memory_read`）、参数 key（`command`、`query`）、枚举值（`executionMode: "sequential"`） |
+| 日常描述 | **中文** | 流程说明、使用建议、注意事项、规则解释 |
+
+核心原则：**术语用英文，日常用中文。** 技术名词、框架约定、API 名称保留英文；解释性、指导性内容使用中文。
+
+> 翻译 prompt 时，不要逐字硬译。将英文的习惯表达转换为中文的自然表达，同时保持技术术语不变。
