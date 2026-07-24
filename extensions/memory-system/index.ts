@@ -815,7 +815,7 @@ How to apply:
     description: "总结当前对话并创建结构化记忆条目。当用户要求保存或记住讨论内容时使用。",
     promptSnippet: "将本次对话捕获为记忆 — 读取会话内容并综合为结构化笔记",
     promptGuidelines: [
-      "当用户说"记住这个"、"保存一下讨论"或类似内容时，使用 memory_create_from_session 而不是 memory_create。",
+      `当用户说"记住这个"、"保存一下讨论"或类似内容时，使用 memory_create_from_session 而不是 memory_create。`,
       "它会自动读取对话内容，你只需提供综合整理 — 无需凭记忆重建。",
     ],
     parameters: Type.Object({
