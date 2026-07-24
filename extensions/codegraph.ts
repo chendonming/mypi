@@ -78,19 +78,19 @@ function buildDiscoveryHint(cwd: string): string {
 		lines.push("在子目录中发现多个 CodeGraph 索引：");
 		for (const dir of subdirs) {
 			const rel = relative(cwd, dir) || ".";
-			lines.push(`  ${dir}/  (使用 -p "${rel}")`);
+			lines.push(`  ${dir}/  (使用 path:"${rel}")`);
 		}
 	}
 	if (parentHasIt) {
 		const rel = relative(cwd, parent) || "..";
-		lines.push(`  ${parent}/  (父目录，使用 -p "${rel}")`);
+		lines.push(`  ${parent}/  (父目录，使用 path:"${rel}")`);
 	}
 
 	if (lines.length === 0) {
 		lines.push("附近未找到 .codegraph 目录。");
 	} else if (subdirs.length > 1) {
 		lines.unshift("");
-		lines.unshift("使用 -p 参数指定要查询的项目。");
+		lines.unshift("使用 path 参数指定要查询的项目。");
 	}
 
 	return lines.join("\n");
@@ -110,7 +110,7 @@ export default function codegraphExtension(pi: ExtensionAPI) {
 			"通过 CodeGraph CLI 探索代码结构、搜索符号、追踪依赖、分析影响",
 		promptGuidelines: [
 			"使用 codegraph 的 command:status 验证 .codegraph 索引存在后再执行其他命令",
-			"当 cwd 下没有 .codegraph 时，codegraph 自动扫描子目录以支持多项目工作空间 — 使用 -p <subdir> 指定目标项目",
+			"当 cwd 下没有 .codegraph 时，codegraph 自动扫描子目录以支持多项目工作空间 — 使用 path 参数指定目标项目",
 			"使用 codegraph explore 一次性了解某个区域 — 返回相关符号及调用路径",
 			"使用 codegraph query 按名称或模式搜索特定符号（可通过 -k kind 按类型过滤）",
 			"使用 codegraph node 获取单个符号的完整源码及 caller/callee 追踪",
@@ -130,11 +130,13 @@ export default function codegraphExtension(pi: ExtensionAPI) {
 						"affected 为空格分隔的文件路径。status|files 无需此参数。",
 				}),
 			),
-			path: Type.Optional(
+				path: Type.Optional(
 				Type.String({
 					description:
 						"项目路径（默认自动检测）。当 cwd 为父目录且多个子项目有 .codegraph 时必填" +
-						" — 例如 -p packages/frontend 或 -p ../other-project。",
+						" — 例如 packages/frontend 或 ../other-project。" +
+						"explore|query|node|callers|callees|impact|affected|files 使用 -p 参数传入；" +
+						"status 等命令自动转为位置参数。",
 				}),
 			),
 			kind: Type.Optional(
@@ -156,7 +158,8 @@ export default function codegraphExtension(pi: ExtensionAPI) {
 			extraArgs: Type.Optional(
 				Type.String({
 					description:
-						"额外 CLI 参数，原样追加，如 '--format flat --filter src/'（files 命令）、" +
+						"额外 CLI 参数，原样追加。" +
+						"如 '--format flat --filter src/'（files 命令）、" +
 						"'--json'（query|callers|callees|impact|status|files）、'--pattern *.ts'（files 命令）。",
 				}),
 			),
@@ -192,7 +195,14 @@ export default function codegraphExtension(pi: ExtensionAPI) {
 				}
 			}
 
-			cmdArgs.push("-p", resolvedPath);
+			// 有些命令用 -p/--path 标志，有些用位置参数 [path]
+			const pathFlagCommands = ["explore", "query", "node", "callers", "callees", "impact", "affected", "files"];
+			if (pathFlagCommands.includes(command)) {
+				cmdArgs.push("-p", resolvedPath);
+			} else {
+				// status、init、uninit、index、sync、unlock 等使用位置参数 [path]
+				cmdArgs.push(resolvedPath);
+			}
 
 			if (kind) cmdArgs.push("-k", kind);
 			if (limit != null && Number.isFinite(limit)) cmdArgs.push("-l", String(Math.floor(limit)));
