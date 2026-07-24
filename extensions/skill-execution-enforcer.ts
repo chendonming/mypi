@@ -9,8 +9,14 @@
  *   模型注意力从该元指令偏移，导致 skill 内容被当作被动上下文而非执行命令。
  *
  * 方案（P0 — Skill 注入位置迁移）：
- *   在 input 事件中拦截 /skill:name 命令，在原始命令前注入显式的执行指令，
- *   利用 recency bias 确保执行指令与 skill 内容始终处于上下文末尾。
+ *   在 input 事件中拦截 /skill:name 命令，在 before_agent_start 事件中
+ *   注入 display:false 的自定义消息承载执行指令。不修改用户输入的可见文本，
+ *   指令仅在 LLM context 中出现，UI 不显示。
+ *
+ * 历史：
+ *   最初使用 input 事件的 transform 将指令嵌入用户消息（可见），
+ *   后改为 before_agent_start + display:false 自定义消息（隐藏）。
+ *   两者消耗的 token 量一致，仅 UI 展示不同。
  *
  * 设计原则：
  *   - 非侵入：不修改 pi 内核逻辑，仅通过扩展事件增强
@@ -27,7 +33,14 @@ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 /** 匹配行首的 /skill:name 命令，可选参数 */
 const SKILL_CMD_RE = /^\s*\/skill:([a-z0-9][a-z0-9-]*)(?:\s+(.*))?$/i;
 
-// 构建执行指令前缀，注入到 /skill:name 命令之前
+/**
+ * 构建执行指令文本，注入到 LLM context 中但不在 UI 显示。
+ *
+ * 方案选择历史：
+ *   之前使用 input 事件的 transform 把指令嵌入用户消息，但用户可见。
+ *   现改为 before_agent_start 注入 display:false 的自定义消息，
+ *   LLM 收到的 token 一致，UI 不再显示。
+ */
 function buildExecutionDirective(skillName: string): string {
   return [
     "",
@@ -38,11 +51,19 @@ function buildExecutionDirective(skillName: string): string {
 }
 
 // ──────────────────────────────────────────────────────────────
+// State（模块级，不持久化）
+// ──────────────────────────────────────────────────────────────
+
+/** 来自 input 事件的待处理 skill 名称 */
+let pendingSkillName: string | null = null;
+
+// ──────────────────────────────────────────────────────────────
 // Extension
 // ──────────────────────────────────────────────────────────────
 
 export default function (pi: ExtensionAPI) {
-  pi.on("input", async (event, ctx) => {
+  // ─── Input 事件：检测 /skill:name，不 transform ───
+  pi.on("input", async (event, _ctx) => {
     // 仅拦截交互式输入（非 RPC 或扩展注入的消息）
     if (event.source !== "interactive") {
       return { action: "continue" };
@@ -56,16 +77,33 @@ export default function (pi: ExtensionAPI) {
       return { action: "continue" };
     }
 
-    const skillName = match[1];
+    // 记住技能名，交给 before_agent_start 处理
+    pendingSkillName = match[1];
 
-    // 在原始命令前注入执行指令
-    // 注意：transform 后的文本仍会经过 pi 正常的 skill 展开，
-    // pi 会识别其中的 /skill:name 并加载 SKILL.md 内容。
-    // 模型看到的是：执行指令 + skill 内容（由 pi 展开），
-    // 两者都在 user message 末尾（recency 位置），
-    // 从而绕过 "Lost in the Middle" 效应。
-    const reinforced = buildExecutionDirective(skillName) + text;
+    // 不 transform 用户输入，保持 UI 干净；
+    // pi 仍会正常展开 /skill:name 为 SKILL.md 内容。
+    return { action: "continue" };
+  });
 
-    return { action: "transform", text: reinforced };
+  // ─── BeforeAgentStart 事件：注入隐藏的执行指令 ───
+  pi.on("before_agent_start", async (event, _ctx) => {
+    if (!pendingSkillName) {
+      return;
+    }
+
+    const skillName = pendingSkillName;
+    pendingSkillName = null; // 消费掉，避免重复注入
+
+    const directive = buildExecutionDirective(skillName);
+
+    // 注入自定义消息（display: false → 不在 TUI 显示）
+    // 该消息位于用户消息之后（recency 位置），LLM 正常接收。
+    return {
+      message: {
+        customType: "skill-enforcer",
+        content: directive,
+        display: false,
+      },
+    };
   });
 }
