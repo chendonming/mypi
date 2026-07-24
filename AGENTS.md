@@ -10,9 +10,33 @@
 
 运行项目根目录下的脚本即可一键建立所有符号链接：
 
+**Linux / macOS：**
 ```bash
 bash scripts/link-to-global.sh
 ```
+
+**Windows（两种方式）：**
+
+> 🪟 **方式一：双击运行 `.bat`（推荐新手）**
+> `scripts\link-to-global.bat` — 自动请求管理员权限，无需额外操作。
+
+> 🪟 **方式二：PowerShell 脚本（推荐进阶用户）**
+> 根据你的运行环境选择：
+>
+> **从 CMD（命令提示符）运行：**
+> ```cmd
+> powershell -ExecutionPolicy Bypass -File scripts\link-to-global.ps1 -Force
+> ```
+>
+> **从 PowerShell 内部运行：**
+> ```powershell
+> .\scripts\link-to-global.ps1 -Force
+> ```
+>
+> ⚠️ 注意：`-File` 参数后的路径必须用反斜杠 `\`，且此语法**仅用于 CMD**；
+> 在 PowerShell 内部应直接用 `。\` 前缀调用脚本。
+
+> Windows 符号链接需要**管理员权限**或**开发者模式**。`.bat` 版本会自动提权（UAC），`.ps1` 版本会先检查权限并给出指引。
 
 脚本会为每个目录/文件创建从全局指向项目的符号链接。
 
@@ -81,6 +105,8 @@ my-pi-tools/                    ←  ~/.pi/agent/           (符号链接)
 | **agents/** | `~/.pi/agent/agents/` | `agents/` | 📁 符号链接 |
 | **keybindings.json** | `~/.pi/agent/keybindings.json` | `config/keybindings.json` | 📄 符号链接 |
 | **subagent-tool-description.md** | `~/.pi/agent/subagent-tool-description.md` | `config/subagent-tool-description.md` | 📄 符号链接 |
+| **link-to-global.bat** | `scripts/link-to-global.bat` | — | 🪟 Windows 入口：双击运行（UAC 提权） |
+| **link-to-global.ps1** | `scripts/link-to-global.ps1` | — | 🪟 Windows 进阶：支持 -Force 静默执行 |
 | **subagent config.json** | `~/.pi/agent/extensions/subagent/config.json` | `extensions/subagent/config.json` | 📄 符号链接（通过 extensions/） |
 | **pi settings** | `~/.pi/agent/settings.json` | `config/settings.template.json` | 🟡 模板，手动复制 |
 | **pi wrapper** | `~/.local/bin/pi` | `config/pi-wrapper.template.sh` | 🟡 模板，手动复制 |
@@ -154,7 +180,7 @@ python3 tools/session-view --ai -p my-pi-tools
 
 新机器恢复后，或每次修改 pi 相关配置后，用此清单核对是否完整。
 
-### 🟢 通过符号链接管理（`link-to-global.sh` → git 跟踪）
+### 🟢 通过符号链接管理（`link-to-global.sh` / `.ps1` / `.bat` → git 跟踪）
 
 | # | 组件 | 项目路径 | 全局目标 | 说明 |
 |---|------|---------|---------|------|
@@ -213,6 +239,7 @@ python3 tools/session-view --ai -p my-pi-tools
 
 ### 首次部署到新机器
 
+**Linux / macOS：**
 ```bash
 # 1. 安装 pi CLI（需要先安装 Node.js ≥ 18）
 npm install -g @earendil-works/pi-coding-agent
@@ -236,6 +263,39 @@ chmod +x ~/.local/bin/pi
 # 6. 启动 pi，它会自动安装 settings.json 中声明的 npm 包
 pi
 ```
+
+**Windows：**
+
+> 以下命令在 **命令提示符 (cmd)** 中执行。如果使用 PowerShell，注意区分离路径语法。
+
+```cmd
+:: 1. 安装 pi CLI（需要先安装 Node.js ≥ 18）
+npm install -g @earendil-works/pi-coding-agent
+
+:: 2. 克隆本项目
+cd %USERPROFILE%
+:: 用实际仓库 URL 替换
+git clone <repo-url>
+cd my-pi-tools
+
+:: 3. 建立符号链接（扩展/技能/agent/按键映射）
+:: 方式 A：双击运行 scripts\link-to-global.bat（自动提权，推荐新手）
+scripts\link-to-global.bat
+
+:: 方式 B：通过 PowerShell 脚本静默执行
+powershell -ExecutionPolicy Bypass -File scripts\link-to-global.ps1 -Force
+:: 如果在 PowerShell 内部，则用：
+:: .\scripts\link-to-global.ps1 -Force
+
+:: 4. 复制 settings.json（pi 会写入此文件，不能符号链接）
+copy config\settings.template.json %USERPROFILE%\.pi\agent\settings.json
+
+:: 5. 启动 pi
+pi
+```
+
+> ⚠️ Windows 符号链接需要**管理员权限**或**启用开发者模式**（设置 → 更新和安全 → 开发者选项 → 开发者模式）。
+> ⚠️ 路径注意：CMD 中使用 `\`，PowerShell 中使用 `。\` 前缀。
 
 ### 调试指南
 
