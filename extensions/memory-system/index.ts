@@ -862,47 +862,8 @@ How to apply:
         };
       }
 
-      // Extract conversation from session
       const now = getDateStr();
-      let conversationContext = "";
-      try {
-        const branch = ctx.sessionManager.getBranch();
-        if (branch && branch.length > 0) {
-          const lines: string[] = [];
-          // Skip the last few entries that belong to this tool-calling turn
-          const relevantEntries = branch.slice(0, -3);
-          for (const entry of relevantEntries) {
-            if (entry.type !== "message" || !entry.message) continue;
-            const role = entry.message.role;
-            if (role !== "user" && role !== "assistant") continue;
-
-            const content = entry.message.content;
-            if (typeof content === "string") {
-              lines.push(`**${role === "user" ? "User" : "Assistant"}**: ${content}`);
-            } else if (Array.isArray(content)) {
-              const textParts: string[] = [];
-              for (const part of content) {
-                if (part && typeof part === "object" && (part as any).type === "text" && typeof (part as any).text === "string") {
-                  textParts.push((part as any).text);
-                }
-              }
-              if (textParts.length > 0) {
-                lines.push(`**${role === "user" ? "User" : "Assistant"}**: ${textParts.join("\n")}`);
-              }
-            }
-          }
-          if (lines.length > 0) {
-            conversationContext = lines.join("\n\n");
-          }
-        }
-      } catch {
-        conversationContext = "(Unable to read session)";
-      }
-
-      // Build memory content
-      const content = params.synthesis + (conversationContext
-        ? `\n\n---\n\n### Conversation Context\n\n${conversationContext}`
-        : "");
+      const content = params.synthesis;
 
       const mem: MemoryFile = {
         frontmatter: {
